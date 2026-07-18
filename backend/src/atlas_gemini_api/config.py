@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     auth0_domain: str | None = None
     auth0_audience: str | None = None
 
+    # optional shared key the QNX device must send (X-Device-Key) to POST runs
+    device_ingest_key: str | None = None
+
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash"
 

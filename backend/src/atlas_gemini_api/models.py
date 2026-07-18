@@ -1,6 +1,20 @@
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class RunIngest(BaseModel):
+    """A tracing run posted by the QNX device. `username` identifies the
+    participant; every other field the device sends (scores, metrics, quality,
+    trace, timing, ...) is accepted and stored as-is."""
+
+    model_config = ConfigDict(extra="allow")
+
+    username: str = Field(min_length=1, max_length=120)
+    session_id: str | None = None
+    device_id: str | None = None
+    scores: dict[str, Any] | None = None
 
 
 class NoteCreate(BaseModel):

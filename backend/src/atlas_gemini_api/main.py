@@ -9,7 +9,7 @@ from google import genai
 from pymongo import AsyncMongoClient
 
 from atlas_gemini_api.config import Settings, get_settings
-from atlas_gemini_api.routers import account, ai, health, notes
+from atlas_gemini_api.routers import account, ai, health, notes, runs
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -69,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(account.router, prefix="/api")
     app.include_router(notes.router, prefix="/api")
+    app.include_router(runs.router, prefix="/api")
     app.include_router(ai.router, prefix="/api")
 
     @app.get("/", include_in_schema=False)

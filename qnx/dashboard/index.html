@@ -11,179 +11,234 @@
   body { background:var(--bg); color:var(--tx);
          font:15px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif; padding:20px; }
   h1 { font-size:20px; } .sub { color:var(--dim); font-size:13px; margin-bottom:18px; }
-  .grid { display:grid; grid-template-columns:340px 1fr; gap:16px; max-width:1100px; }
+  .grid { display:grid; grid-template-columns:360px 1fr; gap:16px; max-width:1150px; }
   .card { background:var(--card); border:1px solid var(--line);
           border-radius:10px; padding:16px; }
-  .step { display:flex; align-items:center; gap:10px; padding:10px 0;
-          border-bottom:1px solid var(--line); }
-  .step:last-child { border-bottom:none; }
-  .dot { width:22px; height:22px; border-radius:50%; background:var(--line);
-         display:flex; align-items:center; justify-content:center; font-size:12px; flex:none; }
-  .dot.done { background:var(--ok); color:#04120b; }
-  .dot.active { background:var(--acc); color:#03101f; }
-  .step small { display:block; color:var(--dim); }
+  h2 { font-size:14px; color:var(--dim); font-weight:600; margin-bottom:10px;
+       text-transform:uppercase; letter-spacing:.04em; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 4px; }
   button { background:var(--acc); color:#03101f; border:none; border-radius:8px;
-           padding:8px 14px; font-weight:600; cursor:pointer; margin-left:auto; }
+           padding:10px 18px; font-weight:600; font-size:15px; cursor:pointer; }
   button:disabled { background:var(--line); color:var(--dim); cursor:default; }
-  button.go { background:var(--ok); font-size:16px; padding:10px 22px; }
+  button.go { background:var(--ok); }
   button.stop { background:var(--bad); color:#fff; }
-  canvas { background:#fff; border-radius:8px; width:100%; }
-  .live { display:flex; gap:20px; align-items:center; margin-top:10px; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--tx); }
+  .userrow { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+  .userrow label { color:var(--dim); font-size:13px; flex:none; }
+  .userrow input { flex:1; background:var(--bg); border:1px solid var(--line);
+                   border-radius:8px; color:var(--tx); padding:9px 12px; font-size:15px; }
+  .userrow input:focus { outline:none; border-color:var(--acc); }
+  .live { display:flex; gap:24px; align-items:baseline; margin-top:10px; }
   .timer { font:600 34px ui-monospace,monospace; }
-  .gauge { font:600 22px ui-monospace,monospace; color:var(--acc); }
+  .gauge { font:600 20px ui-monospace,monospace; color:var(--acc); }
+  .gauge small { color:var(--dim); font-size:12px; font-weight:400; }
+  img.cam, canvas.result { width:100%; background:#000; border-radius:8px; display:block; }
+  .scores { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .score { background:var(--bg); border:1px solid var(--line); border-radius:10px;
+           padding:14px; text-align:center; }
+  .score b { font-size:38px; display:block; line-height:1.1; }
+  .score span { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
   .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
   .metric { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; }
-  .metric b { font-size:20px; display:block; } .metric span { color:var(--dim); font-size:12px; }
-  .msg { font-size:13px; color:var(--dim); min-height:20px; margin-top:8px; }
+  .metric b { font-size:18px; display:block; } .metric span { color:var(--dim); font-size:12px; }
+  .msg { font-size:13px; color:var(--dim); min-height:20px; margin-top:10px; }
   .ok { color:var(--ok); } .bad { color:var(--bad); }
   .legend { font-size:12px; color:var(--dim); margin-top:6px; }
   .legend b.k { display:inline-block; width:22px; height:3px; vertical-align:middle; margin-right:4px; }
-  img.snap { width:100%; border-radius:8px; margin-top:10px; }
 </style>
 </head>
 <body>
 <h1>RehabTrace</h1>
-<div class="sub">QNX Pi · path-tracing · black = reference, red = attempt · prototype measures (not clinical)</div>
+<div class="sub">QNX Pi · trace the black pattern in red · accuracy = per-slice black↔red pixel distance · prototype (not clinical)</div>
 
 <div class="grid">
-  <div class="card" id="steps">
-    <div class="step" id="st1">
-      <div class="dot">1</div>
-      <div>Calibrate camera<small>Clean mat: black line only, no red yet</small></div>
-      <button onclick="calCamera()" id="b1">Start</button>
+  <div class="card">
+    <h2>Camera</h2>
+    <div class="userrow">
+      <label for="uname">Username</label>
+      <input id="uname" placeholder="enter participant username" autocomplete="off"
+             oninput="onUname()">
     </div>
-    <div class="step" id="st2">
-      <div class="dot">2</div>
-      <div>Calibrate IMU<small>Rest the pencil still on the table</small></div>
-      <button onclick="calImu()" id="b2" disabled>Calibrate</button>
-    </div>
-    <div class="step" id="st3">
-      <div class="dot">3</div>
-      <div>Run the task<small>Trace the line in red, then STOP</small></div>
-      <button class="go" onclick="go()" id="b3" disabled>GO</button>
+    <img class="cam" id="cam" alt="camera view" width="360" height="203">
+    <div class="controls">
+      <button class="go" onclick="startRun()" id="bstart" disabled>Start</button>
+      <button class="stop" onclick="stopRun()" id="bstop" disabled>Stop</button>
+      <button onclick="scoreRun()" id="bscore" disabled>Capture &amp; Score</button>
+      <button class="ghost" onclick="resetRun()" id="breset">New run</button>
     </div>
     <div class="live">
       <span class="timer" id="timer">0.0s</span>
-      <span class="gauge" id="gauge">— °/s</span>
-      <button class="stop" onclick="stopTask()" id="bstop" disabled>STOP</button>
+      <span class="gauge" id="gauge">— <small>°/s</small></span>
     </div>
-    <div class="msg" id="msg">New session starts automatically.</div>
+    <div class="msg" id="msg">Live camera view. Press Start to begin.</div>
   </div>
 
   <div class="card">
-    <canvas id="mat" width="660" height="840"></canvas>
+    <h2>Result</h2>
+    <div class="scores" id="scores" style="display:none">
+      <div class="score"><b id="sAcc">—</b><span>accuracy</span></div>
+      <div class="score"><b id="sStab">—</b><span>stability</span></div>
+    </div>
+    <canvas class="result" id="result" width="660" height="371"></canvas>
     <div class="legend">
-      <b class="k" style="background:#26c"></b>reference (black line)&nbsp;&nbsp;
-      <b class="k" style="background:#d33"></b>attempt (red ink)
+      <b class="k" style="background:#4da3ff"></b>blue reference (detected)&nbsp;&nbsp;
+      <b class="k" style="background:#ff6b6b"></b>red trace (detected)
     </div>
     <div class="metrics" id="metrics" style="display:none"></div>
-    <img class="snap" id="endsnap" style="display:none">
   </div>
 </div>
 
 <script>
-const MAT_W = 215.9, MAT_H = 279.4;
-let reference = [], attempt = [], sid = null;
-let t_go = null, timerIv = null, liveIv = null;
-
 const $ = id => document.getElementById(id);
-const cv = $("mat"), cx = cv.getContext("2d");
-const sx = cv.width / MAT_W, sy = cv.height / MAT_H;
-
-function drawPoly(pts, color, w) {
-  if (pts.length < 2) return;
-  cx.strokeStyle = color; cx.lineWidth = w; cx.beginPath();
-  pts.forEach((p,i) => i ? cx.lineTo(p[0]*sx,p[1]*sy) : cx.moveTo(p[0]*sx,p[1]*sy));
-  cx.stroke();
-}
-function draw() {
-  cx.fillStyle = "#fff"; cx.fillRect(0,0,cv.width,cv.height);
-  cx.strokeStyle = "#d33"; cx.lineWidth = 2;
-  [[15,15],[200.9,15],[200.9,264.4],[15,264.4]].forEach(([x,y]) => {
-    cx.beginPath();
-    cx.moveTo(x*sx-8,y*sy); cx.lineTo(x*sx+8,y*sy);
-    cx.moveTo(x*sx,y*sy-8); cx.lineTo(x*sx,y*sy+8); cx.stroke();
-  });
-  drawPoly(reference, "#26c", 3);
-  drawPoly(attempt, "#d33", 2.5);
-}
+let sid = null, phase = "idle";
+let t_go = null, timerIv = null, liveIv = null;
+let previewOn = true;
 
 function msg(t, cls) { $("msg").innerHTML = `<span class="${cls||''}">${t}</span>`; }
-function setStep(n, s) {
-  const d = $("st"+n).querySelector(".dot");
-  d.className = "dot " + (s||""); if (s === "done") d.textContent = "✓";
-}
+
 async function api(path, body) {
   const r = await fetch(path, body !== undefined
     ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}
     : undefined);
   return r.json();
 }
-async function newSession() {
-  const r = await api("/api/session/new", {participant:"demo_01"});
-  sid = r.session_id; msg(`Session <b>${sid}</b> ready.`);
+
+// ---- live camera preview: poll a fresh still ~1/1.3s while enabled ----
+async function previewLoop() {
+  while (true) {
+    if (previewOn && sid) {
+      try {
+        const r = await api("/api/preview", {});
+        if (r && r.ok) {
+          await new Promise(res => {
+            const im = new Image();
+            im.onload = im.onerror = res;
+            im.src = r.file + "?t=" + Date.now();
+            $("cam").src = im.src;
+          });
+        }
+      } catch (e) { /* keep looping */ }
+    }
+    await new Promise(res => setTimeout(res, 300));
+  }
 }
 
-async function calCamera() {
-  msg("Calibrating camera… keep the mat clear of red."); $("b1").disabled = true;
-  const r = await api("/api/calibrate/camera", {});
-  if (r.ok) {
-    setStep(1,"done"); $("b2").disabled = false; setStep(2,"active");
-    const st = await api("/api/state"); reference = st.reference || []; draw();
-    msg(`Camera OK — 4 corners found, black reference captured (${r.ref_points} pts).`, "ok");
-  } else {
-    $("b1").disabled = false;
-    msg(`Camera calibration failed: ${r.error||'unknown'} — check lighting/mat.`, "bad");
-  }
+async function newSession(username) {
+  const r = await api("/api/session/new", {username: username || ""});
+  sid = r.session_id;
 }
-async function calImu() {
-  msg("Calibrating IMU… hold the pencil perfectly still (2s)."); $("b2").disabled = true;
-  const r = await api("/api/calibrate/imu", {});
-  if (r.ok) {
-    setStep(2,"done"); $("b3").disabled = false; setStep(3,"active");
-    msg(`IMU OK — bias (${r.bias.x.toFixed(1)}, ${r.bias.y.toFixed(1)}, ${r.bias.z.toFixed(1)}) °/s, noise ${r.noise_dps}°/s.`, "ok");
-  } else {
-    $("b2").disabled = false;
-    msg(`IMU calibration failed — was the pencil moving? (noise ${r.noise_dps}°/s)`, "bad");
-  }
+
+function uname() { return $("uname").value.trim(); }
+function onUname() {
+  // Start is only allowed with a username, and only when idle
+  if (phase === "idle" || phase === "complete")
+    $("bstart").disabled = uname() === "";
 }
-async function go() {
+
+async function startRun() {
+  if (uname() === "") return msg("Enter a username before starting.", "bad");
+  $("bstart").disabled = true; $("uname").disabled = true;
+  // bind this run to the username with a fresh session, then start
+  await newSession(uname());
+  msg("Hold the pen still at the start — calibrating IMU (2s)…");
   const r = await api("/api/go", {});
-  if (!r.ok) return msg("Failed to start.", "bad");
-  attempt = []; draw(); t_go = Date.now();
-  $("b3").disabled = true; $("bstop").disabled = false;
-  msg("Recording — trace the line in red. IMU is live.", "ok");
+  if (!r.ok) { $("bstart").disabled = false; $("uname").disabled = false;
+               return msg("Start failed: " + (r.error||""), "bad"); }
+  phase = "recording"; t_go = Date.now();
+  $("bstop").disabled = false;
+  $("scores").style.display = "none"; $("metrics").style.display = "none";
+  msg(`Recording — trace the black pattern in red. (bias noise ${r.noise_dps}°/s)`, "ok");
   timerIv = setInterval(() => $("timer").textContent = ((Date.now()-t_go)/1000).toFixed(1)+"s", 100);
   liveIv = setInterval(async () => {
     const l = await fetch("/api/imu_live").then(x=>x.json());
-    $("gauge").textContent = (l.gyro_mag==null?"—":l.gyro_mag.toFixed(1)) + " °/s";
+    $("gauge").innerHTML = (l.gyro_mag==null?"—":l.gyro_mag.toFixed(1)) + " <small>°/s</small>";
   }, 300);
 }
-async function stopTask() {
+
+async function stopRun() {
   clearInterval(timerIv); clearInterval(liveIv);
-  $("bstop").disabled = true; msg("Taking photo & scoring…");
+  $("bstop").disabled = true;
   const r = await api("/api/stop", {});
-  if (!r.ok) return msg("Stop failed: " + (r.error||""), "bad");
-  setStep(3,"done");
-  const st = await api("/api/state"); attempt = st.attempt || []; draw();
-  const m = r.session.metrics, q = r.session.quality, fmt = v => v==null ? "—" : v;
-  $("metrics").style.display = "grid";
-  $("metrics").innerHTML = `
-    <div class="metric"><b>${fmt(m.path_within_bounds_pct)}%</b><span>within bounds</span></div>
-    <div class="metric"><b>${fmt(m.path_coverage_pct)}%</b><span>path covered</span></div>
-    <div class="metric"><b>${fmt(m.completion_time_seconds)}s</b><span>task time</span></div>
-    <div class="metric"><b>${fmt(m.mean_path_deviation_mm)}mm</b><span>mean deviation</span></div>
-    <div class="metric"><b>${fmt(m.maximum_path_deviation_mm)}mm</b><span>max deviation</span></div>
-    <div class="metric"><b>${fmt(m.gyro_rms_deg_s)}°/s</b><span>gyro RMS (stability)</span></div>
-    <div class="metric"><b>${fmt(m.peak_angular_velocity_deg_s)}°/s</b><span>peak angular vel</span></div>
-    <div class="metric"><b>${fmt(q.imu_rate_hz)}Hz</b><span>IMU rate</span></div>
-    <div class="metric"><b>${q.imu_samples_received}</b><span>IMU samples</span></div>`;
-  $("endsnap").src = `/sessions/${sid}/end.bmp?` + Date.now();
-  $("endsnap").style.display = "block";
-  msg(`Done — saved to sessions/${sid}/session.json and outbox/latest.json.`, "ok");
+  if (!r.ok) { $("bstop").disabled = false; return msg("Stop failed: " + (r.error||""), "bad"); }
+  phase = "stopped";
+  $("bscore").disabled = false;
+  msg(`Stopped (${r.duration_s}s). <b>Lift the pen straight up and away</b>, then Capture &amp; Score.`, "ok");
 }
 
-draw(); setStep(1,"active"); newSession();
+async function scoreRun() {
+  $("bscore").disabled = true;
+  previewOn = false;                       // free the camera for the score shot
+  msg("Taking photo &amp; scoring…");
+  const r = await api("/api/score", {});
+  if (!r.ok) { $("bscore").disabled = false; previewOn = true;
+               return msg("Scoring failed: " + (r.error||""), "bad"); }
+  phase = "complete";
+  renderResult(r.session);
+  const st = await api("/api/state");
+  drawOverlay(st);
+  const fw = r.session._forward || {};
+  const sent = fw.forwarded ? "sent to backend ✓"
+             : (fw.reason === "no_backend_url" ? "saved locally (no backend configured)"
+                                               : "backend unreachable — saved locally");
+  msg(`Done for <b>${r.session.username}</b> — ${sent}. Press New run for another.`, "ok");
+}
+
+async function resetRun() {
+  clearInterval(timerIv); clearInterval(liveIv);
+  await newSession(uname());
+  phase = "idle"; previewOn = true;
+  $("uname").disabled = false;
+  $("bstart").disabled = uname() === ""; $("bstop").disabled = true; $("bscore").disabled = true;
+  $("timer").textContent = "0.0s"; $("gauge").innerHTML = "— <small>°/s</small>";
+  $("scores").style.display = "none"; $("metrics").style.display = "none";
+  clearCanvas();
+  msg("Live camera view. Press Start to begin.");
+}
+
+// ---- results ----
+const fmt = v => v==null ? "—" : v;
+function renderResult(s) {
+  const m = s.metrics, q = s.quality;
+  $("scores").style.display = "grid";
+  $("sAcc").textContent = fmt(s.scores.accuracy);
+  $("sStab").textContent = fmt(s.scores.stability);
+  $("metrics").style.display = "grid";
+  $("metrics").innerHTML = `
+    <div class="metric"><b>${fmt(m.mean_dev_px)}px</b><span>mean deviation</span></div>
+    <div class="metric"><b>${fmt(m.max_dev_px)}px</b><span>max deviation</span></div>
+    <div class="metric"><b>${fmt(m.coverage_pct)}%</b><span>pattern covered</span></div>
+    <div class="metric"><b>${fmt(m.completion_time_seconds)}s</b><span>task time</span></div>
+    <div class="metric"><b>${fmt(m.gyro_rms_deg_s)}°/s</b><span>gyro RMS</span></div>
+    <div class="metric"><b>${fmt(m.peak_angular_velocity_deg_s)}°/s</b><span>peak ang. vel.</span></div>
+    <div class="metric"><b>${fmt(m.tremor_rms_deg_s)}°/s</b><span>tremor (jitter)</span></div>
+    <div class="metric"><b>${fmt(q.imu_rate_hz)}Hz</b><span>IMU rate</span></div>
+    <div class="metric"><b>${fmt(q.n_scored_slices)}</b><span>scored slices</span></div>`;
+}
+
+const rc = $("result"), rx = rc.getContext("2d");
+function clearCanvas() { rx.fillStyle = "#000"; rx.fillRect(0,0,rc.width,rc.height); }
+function drawPoly(pts, color, sx, sy) {
+  if (!pts || pts.length < 2) return;
+  rx.strokeStyle = color; rx.lineWidth = 3; rx.beginPath();
+  pts.forEach((p,i) => i ? rx.lineTo(p[0]*sx,p[1]*sy) : rx.moveTo(p[0]*sx,p[1]*sy));
+  rx.stroke();
+}
+function drawOverlay(st) {
+  const fr = st.frame || [rc.width, rc.height];
+  // fit the end photo (BMP) then overlay detected polylines in frame pixels
+  const im = new Image();
+  im.onload = im.onerror = () => {
+    const sx = rc.width / fr[0], sy = rc.height / fr[1];
+    rx.fillStyle = "#000"; rx.fillRect(0,0,rc.width,rc.height);
+    try { rx.drawImage(im, 0, 0, rc.width, rc.height); } catch(e) {}
+    drawPoly(st.reference, "#4da3ff", sx, sy);
+    drawPoly(st.red, "#ff6b6b", sx, sy);
+  };
+  im.src = `/sessions/${sid}/end.bmp?t=` + Date.now();
+}
+
+clearCanvas();
+newSession().then(previewLoop);
 </script>
 </body>
 </html>
