@@ -47,7 +47,7 @@ export function ComparisonView(props: Props) {
           <div className="comparison-title">
             <span className="section-kicker">Deterministic comparison</span>
             <h2>{titleCase(props.comparison.deterministic_comparison.overall)}</h2>
-            <p>Only compatible task metadata is accepted. Deltas are direct measurements, not model predictions.</p>
+            <p>Only compatible task metadata is accepted. Deltas are direct measurements, not model-generated analysis.</p>
           </div>
           <div className="comparison-table" role="table" aria-label="Side-by-side run comparison">
             <div className="comparison-row table-header" role="row"><span>Measurement</span><span>Reference</span><span>Current</span><span>Change</span></div>
@@ -66,4 +66,3 @@ export function ComparisonView(props: Props) {
     </div>
   )
 }
-

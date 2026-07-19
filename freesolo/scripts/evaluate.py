@@ -1,8 +1,9 @@
-"""Deterministic evaluator for RehabTrace FreeSolo responses.
+"""Deterministic evaluator for Praxis FreeSOLO responses.
 
 Usage: python3 scripts/evaluate.py <input.json> <response.txt>
        python3 scripts/evaluate.py --validate-dataset
 """
+
 from __future__ import annotations
 
 import json
@@ -27,7 +28,7 @@ def validate_dataset():
             input_data = json.loads(row["input"])
             output_data = json.loads(row["output"])
             train_inputs.add(row["input"])
-            results = check_structure(input_data, output_data)
+            results = check_structure(input_data, output_data, output_data)
             total += 1
             if not all(ok for _, ok, _ in results):
                 failures += 1
@@ -38,7 +39,7 @@ def validate_dataset():
             row = json.loads(line)
             input_data = row["input"]
             output_data = row["output"]
-            results = check_structure(input_data, output_data)
+            results = check_structure(input_data, output_data, output_data)
             total += 1
             if not all(ok for _, ok, _ in results):
                 failures += 1
@@ -48,7 +49,9 @@ def validate_dataset():
             }:
                 failures += 1
                 print(f"--- examples/test.jsonl:{i} ---")
-                print("  [FAIL] held_out_input_not_in_train -- input also present in training set")
+                print(
+                    "  [FAIL] held_out_input_not_in_train -- input also present in training set"
+                )
 
     print(f"\nvalidated {total} examples, {failures} failed")
     sys.exit(1 if failures else 0)

@@ -1,14 +1,15 @@
 model = "Qwen/Qwen3.5-4B"
 algorithm = "sft"
 thinking = false
+seed = 42
 
 [environment]
-id = "mlh/rehabtrace-freesolo"
+id = "bananagoo/praxis-freesolo"
 
 [train]
-epochs = 6
-max_examples = 91
+epochs = 2
+max_examples = 194
 lora_rank = 16
 lora_alpha = 32
 batch_size = 4
-max_steps = 120
+max_context_tokens = 4096

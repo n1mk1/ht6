@@ -9,18 +9,24 @@ export function ModelPanel({ result }: { result: ModelResult | null }) {
   return (
     <section className={`model-panel model-${status}`} aria-labelledby="model-title">
       <div className="model-title-row">
-        <span className="section-kicker"><BrainCircuit size={14} /> FreeSOLO prediction</span>
+        <span className="section-kicker"><BrainCircuit size={14} /> FreeSOLO session analysis</span>
         <span className="status-chip">{icon}{label}</span>
       </div>
       <h3 id="model-title">
-        {status === 'completed' ? `Task pattern: ${label}` : status === 'pending' ? 'Analysis is pending' : status === 'error' ? 'Analysis could not complete' : 'Prediction unavailable'}
+        {status === 'completed' ? `Task pattern: ${label}` : status === 'pending' ? 'Analysis is pending' : status === 'error' ? 'Analysis could not complete' : 'Analysis unavailable'}
       </h3>
       {status === 'completed' && result?.adapter === 'development_mock' && (
-        <p className="warning-copy">Development simulation only. No production prediction was generated.</p>
+        <p className="warning-copy">Development simulation only. No production model analysis was generated.</p>
       )}
       {status === 'completed' && result?.result?.observations?.map((observation) => (
         <p key={observation.statement}>{observation.statement}</p>
       ))}
+      {status === 'completed' && result?.result?.conflicts_or_limitations?.map((limitation) => (
+        <p className="clinical-note" key={limitation}>{limitation}</p>
+      ))}
+      {status === 'completed' && result?.result?.possible_next_step && (
+        <p><strong>Suggested review step:</strong> {result.result.possible_next_step}</p>
+      )}
       {status === 'unavailable' && (
         <p>The source session does not yet satisfy the deployed model contract. Raw measurements and deterministic comparisons remain available.</p>
       )}
@@ -31,4 +37,3 @@ export function ModelPanel({ result }: { result: ModelResult | null }) {
     </section>
   )
 }
-

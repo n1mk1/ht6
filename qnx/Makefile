@@ -24,7 +24,7 @@ build: sync
 	@./scripts/pi.sh 'cd ~/steadyeye/vision && g++ -O2 -std=c++17 -o rt_vision rt_vision.cpp -lcamapi -lscreen && echo BUILD_OK'
 
 server: sync
-	@./scripts/pi.sh 'pidin ar 2>/dev/null | grep "server/server.py" | grep -v grep | awk "{print \$$1}" | xargs -r kill 2>/dev/null; sleep 2; cd ~/steadyeye && (nohup ~/venv/bin/python server/server.py > server.log 2>&1 &) && sleep 2 && head -2 server.log'
+	@./scripts/pi.sh 'pidin ar 2>/dev/null | grep "server/server.py" | grep -v grep | awk "{print \$$1}" | xargs -r kill 2>/dev/null; sleep 2; cd ~/steadyeye; set -a; [ ! -f device.env ] || . ./device.env; set +a; (nohup ~/venv/bin/python server/server.py > server.log 2>&1 &) && sleep 2 && head -2 server.log'
 
 deploy: build server
 	@echo "dashboard: http://qnxpi23.local:8080/"

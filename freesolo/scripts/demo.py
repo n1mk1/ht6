@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local RehabTrace demo: build the FreeSolo prompt and validate the gold response.
+"""Local Praxis demo: build the FreeSolo prompt and validate the gold response.
 
 This exercises the same prompt-building + deterministic validation path used after
 deployment, without calling a paid model.
@@ -8,6 +8,7 @@ Usage:
   python3 scripts/demo.py
   python3 scripts/demo.py --response examples/demo_case_gold_response.txt
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,7 +23,7 @@ from contract_checks import check_response_text, print_results  # noqa: E402
 
 
 def build_prompt_messages(input_data: dict) -> list[dict]:
-    """Mirror environment.RehabTraceEnv.build_prompt_messages without freesolo import."""
+    """Mirror the deployed environment prompt without importing FreeSOLO."""
     system_prompt = (ROOT / "system_prompt.txt").read_text().strip()
     return [
         {"role": "system", "content": system_prompt},
@@ -31,7 +32,7 @@ def build_prompt_messages(input_data: dict) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="RehabTrace local demo")
+    parser = argparse.ArgumentParser(description="Praxis local demo")
     parser.add_argument(
         "--input",
         default=str(ROOT / "examples" / "demo_case.json"),
@@ -47,11 +48,9 @@ def main() -> int:
     input_data = json.loads(Path(args.input).read_text())
     response_path = Path(args.response)
     if not response_path.exists():
-        # Fall back to regenerating gold from generate_dataset constants.
-        sys.path.insert(0, str(ROOT / "scripts"))
-        from generate_dataset import DEMO_OUTPUT  # noqa: WPS433
-
-        response_path.write_text(json.dumps(DEMO_OUTPUT, indent=2) + "\n")
+        held_out = (ROOT / "examples" / "test.jsonl").read_text().splitlines()
+        demo_output = json.loads(held_out[0])["output"]
+        response_path.write_text(json.dumps(demo_output, indent=2) + "\n")
         print(f"wrote gold response -> {response_path}")
 
     response_text = response_path.read_text()

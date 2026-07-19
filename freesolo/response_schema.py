@@ -1,37 +1,12 @@
-"""Shared RehabTrace response JSON schema for training + regression guided decoding."""
+"""Guided-decoding response schema for Praxis FreeSOLO v2."""
 
-METRIC_KEYS = [
-    "path_inside_percent",
-    "mean_deviation_mm",
-    "max_deviation_mm",
-    "completion_time_seconds",
-    "pause_count",
-    "correction_count",
-    "angular_instability_rms",
-    "peak_angular_velocity_dps",
-]
-
-CONFLICTS_ENUM = [
-    "These results describe measured performance on this standardized task only.",
-    "The task was completed more quickly, but path accuracy and deviation were worse.",
-    "Accuracy improved, but the task was completed more slowly.",
-    "Tracing accuracy improved, but movement stability during the task was worse.",
-    "The current session's calibration did not pass validation, so this comparison is not considered reliable.",
-    "This reflects a change in standardized task performance only and does not indicate a clinical outcome or confirm that therapy caused the change.",
-    "These results describe measured performance on this standardized task only and do not explain why the values changed.",
-    "Reference and current sessions use different task identifiers and must not be compared.",
-    "Tracing accuracy was stable, but movement stability during the task was notably worse.",
-    "IMU data capture for the current session was well below a usable threshold, so movement-quality measurements are not considered reliable.",
-]
+from praxis_contract import ALLOWED_PATTERNS, METRIC_KEYS
 
 RESPONSE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
-        "overall_pattern": {
-            "type": "string",
-            "enum": ["improved", "declined", "stable", "mixed", "unreliable"],
-        },
+        "overall_pattern": {"type": "string", "enum": sorted(ALLOWED_PATTERNS)},
         "observations": {
             "type": "array",
             "minItems": 2,
@@ -40,12 +15,12 @@ RESPONSE_SCHEMA = {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "statement": {"type": "string"},
+                    "statement": {"type": "string", "minLength": 16, "maxLength": 320},
                     "metric_keys": {
                         "type": "array",
                         "minItems": 1,
                         "maxItems": 4,
-                        "items": {"type": "string", "enum": METRIC_KEYS},
+                        "items": {"type": "string", "enum": list(METRIC_KEYS)},
                     },
                 },
                 "required": ["statement", "metric_keys"],
@@ -55,7 +30,7 @@ RESPONSE_SCHEMA = {
             "type": "array",
             "minItems": 1,
             "maxItems": 2,
-            "items": {"type": "string", "enum": CONFLICTS_ENUM},
+            "items": {"type": "string", "minLength": 16, "maxLength": 320},
         },
         "possible_next_step": {"type": "string"},
         "therapist_review_required": {"type": "boolean", "enum": [True]},

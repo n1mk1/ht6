@@ -18,6 +18,8 @@ export type ModelResult = {
   result: {
     observations?: { statement: string; metric_keys: string[] }[]
     conflicts_or_limitations?: string[]
+    possible_next_step?: string
+    therapist_review_required?: boolean
   } | null
   error_code: string | null
   error_detail: string | null
@@ -79,4 +81,3 @@ export type PairComparison = {
   deterministic_comparison: DeterministicComparison
   model_prediction: ModelResult | null
 }
-

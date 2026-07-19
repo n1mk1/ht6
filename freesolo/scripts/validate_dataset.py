@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Validate RehabTrace train + held-out datasets against CONTRACT.md rules."""
+"""Validate Praxis train and held-out datasets against CONTRACT.md rules."""
+
 from __future__ import annotations
 
 import os

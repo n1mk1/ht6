@@ -22,8 +22,11 @@ def check(cond, msg):
 def test_scores():
     # perfect trace: 0 mm deviation, full coverage -> 100
     check(score.accuracy_score(0.0, 100.0) == 100.0, "acc perfect == 100")
-    # coverage is required for quality, but no longer caps the score
-    check(score.accuracy_score(0.0, 50.0) == 100.0, "acc perfect with partial coverage == 100")
+    # coverage is a quality gate, not a score multiplier
+    check(score.accuracy_score(0.0, 59.9) is None,
+          "acc below minimum coverage -> None")
+    check(score.accuracy_score(0.0, 60.0) == 100.0,
+          "acc at minimum coverage uses deviation score")
     # missing inputs -> None (never fabricate)
     check(score.accuracy_score(None, 100.0) is None, "acc None input -> None")
     check(score.accuracy_score(0.0, None) is None, "acc missing coverage -> None")
@@ -93,7 +96,8 @@ def test_llm_validation():
     obj = _sample_obj()
     # faithful summary (uses only source numbers + exact scores/bands) -> valid
     good = ("Accuracy scored 26.4 (low) and stability scored 43.4 (moderate). "
-            "Mean spatial error was 6.8 mm with 100.0% coverage.")
+            "Mean spatial error was 6.8 mm with 100.0% coverage. "
+            + explain.DISCLAIMER)
     check(explain.validate_summary(good, obj), "faithful summary validates")
     # fabricated number (99) -> rejected
     bad = ("Accuracy scored 26.4 (low) and stability scored 43.4 (moderate), "
@@ -102,6 +106,11 @@ def test_llm_validation():
     # altered score -> rejected (missing exact score string)
     bad2 = "Accuracy scored 30.0 (low) and stability scored 43.4 (moderate)."
     check(not explain.validate_summary(bad2, obj), "altered score rejected")
+    bad3 = (explain._score_sentence(obj) +
+            " Both measurements were at the 100th percentile. " +
+            explain.DISCLAIMER)
+    check(not explain.validate_summary(bad3, obj),
+          "generic scale bound cannot hide a fabricated percentile")
 
 
 def test_explain_fallback():
@@ -117,13 +126,26 @@ def test_explain_fallback():
     check(explain.validate_summary(r["summary"], obj), "template self-validates")
 
 
-def test_constrained_candidates():
+def test_generated_summary_contract():
     obj = _sample_obj()
-    candidates = explain._candidate_summaries(obj)
-    check(len(candidates) >= 2, "multiple narrative candidates are available")
-    for candidate in candidates:
-        check(explain.validate_summary(candidate, obj),
-              "every llama-selectable candidate is fact-valid")
+    generated = (explain._score_sentence(obj) + " Mean spatial error was 6.8 mm. "
+                 + explain.DISCLAIMER)
+    check(explain.validate_summary(generated, obj),
+          "grounded generated summary validates")
+    check(not explain.validate_summary(generated.replace(explain.DISCLAIMER, ""), obj),
+          "generated summary without limitation is rejected")
+    check(not explain.validate_summary(generated.replace("6.8", "7.7"), obj),
+          "generated summary with invented metric is rejected")
+    check(explain._validate_analysis(
+        "Mean spatial error was 6.8 mm with 100.0% pattern coverage, and "
+        "completion time was 12.3 s.", obj),
+        "neutral generated analysis validates")
+    check(not explain._validate_analysis(
+        "Mean spatial error was within acceptable limits at 6.8 mm.", obj),
+        "unsupported qualitative threshold is rejected")
+    check(not explain._validate_analysis(
+        "Mean spatial error was 6.8 mm, indicating slight patient movement.", obj),
+        "unsupported generated inference is rejected")
 
 
 # ---- structured-input schema ---------------------------------------------
@@ -141,7 +163,7 @@ if __name__ == "__main__":
     print("running Praxis tests...")
     for fn in (test_scores, test_bands, test_percentile_valid,
                test_percentile_missing, test_llm_validation,
-               test_explain_fallback, test_constrained_candidates,
+               test_explain_fallback, test_generated_summary_contract,
                test_input_schema):
         fn()
     if FAIL == 0:

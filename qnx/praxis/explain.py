@@ -12,7 +12,7 @@ import re
 import subprocess
 import time
 
-EXPLAIN_VERSION = "praxis-explain-1.1.0"
+EXPLAIN_VERSION = "praxis-explain-1.2.0"
 
 BASE = os.path.expanduser("~/steadyeye")
 LLAMA_ROOT = os.path.join(BASE, "vendor", "qnx-root")
@@ -20,8 +20,9 @@ LLAMA_ROOT = os.path.join(BASE, "vendor", "qnx-root")
 LLAMA_BIN = os.environ.get(
     "PRAXIS_LLAMA_BIN", os.path.join(LLAMA_ROOT, "usr", "bin", "llama-completion"))
 LLAMA_MODEL = os.environ.get(
-    "PRAXIS_LLAMA_MODEL", os.path.join(BASE, "models", "SmolVLM-256M-Instruct-Q8_0.gguf"))
-LLAMA_TIMEOUT_S = float(os.environ.get("PRAXIS_LLAMA_TIMEOUT_S", "45"))
+    "PRAXIS_LLAMA_MODEL",
+    os.path.join(BASE, "models", "qwen2.5-0.5b-instruct-q4_k_m.gguf"))
+LLAMA_TIMEOUT_S = float(os.environ.get("PRAXIS_LLAMA_TIMEOUT_S", "75"))
 LLAMA_LIBS = os.pathsep.join([
     os.path.join(LLAMA_ROOT, "usr", "lib", "llama.cpp"),
     os.path.join(LLAMA_ROOT, "usr", "lib"), "/usr/lib", "/lib",
@@ -57,7 +58,7 @@ def build_input(task, scores, bands, percentiles, metrics, quality_warnings,
 # -------------------------------------------------------- number validation
 def _allowed_numbers(obj):
     """Every numeric value the summary is allowed to mention."""
-    allowed = {0.0, 100.0}  # scale bounds ("0-100 scale") are always allowed
+    allowed = set()
 
     def add(v):
         if isinstance(v, bool) or v is None:
@@ -83,7 +84,21 @@ def _allowed_numbers(obj):
 def validate_summary(text, obj):
     """Every number in `text` must correspond to an allowed source number, and
     the exact scores/bands must appear. Returns True if the summary is faithful."""
+    if not isinstance(text, str) or not text.strip() or len(text) > 1200:
+        return False
     allowed = _allowed_numbers(obj)
+    percentile_values = set()
+    for measurement in obj.get("percentiles", {}).values():
+        value = measurement.get("percentile")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            percentile_values.add(round(float(value), 2))
+    percentile_mentions = re.findall(
+        r"(?i)(?:percentile\s*:?\s*(-?\d+(?:\.\d+)?)|"
+        r"(-?\d+(?:\.\d+)?)(?:st|nd|rd|th)?\s+percentile)", text)
+    for before, after in percentile_mentions:
+        value = round(float(before or after), 2)
+        if not any(abs(value - actual) < 0.05 for actual in percentile_values):
+            return False
     # A leading '-' only counts as negative when not preceded by a word char or
     # dot, so ranges like "0-100" tokenize as 0 and 100 (not -100).
     for tok in re.findall(r"(?<![\w.])-?\d+(?:\.\d+)?", text):
@@ -93,14 +108,26 @@ def validate_summary(text, obj):
             continue
         if not any(abs(val - a) < 0.05 for a in allowed):
             return False  # a number not backed by the source metrics
-    # scores + bands must be stated exactly
-    for key in ("accuracy", "stability"):
-        sc = obj["scores"][key]
-        if sc is not None and str(sc) not in text:
+    if _score_sentence(obj).lower() not in text.lower():
+        return False
+    if DISCLAIMER.lower() not in text.lower():
+        return False
+    image_quality = obj.get("image_quality") or {}
+    if image_quality.get("ok"):
+        lower = text.lower()
+        if image_quality.get("classification") == "valid":
+            if "accepted" not in lower or "capture" not in lower:
+                return False
+        elif "repeat" not in lower or "capture" not in lower:
             return False
-        bd = obj["bands"][key]
-        if bd and bd not in text.lower():
-            return False
+    forbidden = (
+        "approved for medical", "therapeutic purposes", "medical advice",
+        "seek treatment", "indicates a diagnosis", "recovery rate",
+        "better than average", "worse than average",
+        "reliable", "reliability", "successful", "successfully",
+    )
+    if any(phrase in text.lower() for phrase in forbidden):
+        return False
     return True
 
 
@@ -113,15 +140,23 @@ def _pct_phrase(meas):
     return f"{p}th percentile ({label})"
 
 
+DISCLAIMER = ("These are prototype task-performance measures, not a clinical "
+              "or diagnostic assessment.")
+
+
+def _score_sentence(obj):
+    s, b = obj["scores"], obj["bands"]
+    return (f"Accuracy scored {s['accuracy']} ({b['accuracy']}) and stability "
+            f"scored {s['stability']} ({b['stability']}).")
+
+
 def template_summary(obj):
     """Deterministic, always-valid summary. Repeats scores/bands/percentiles and
     the main contributing factors using only supplied facts."""
     s, b, m = obj["scores"], obj["bands"], obj["metrics"]
     pa, ps = obj["percentiles"]["accuracy"], obj["percentiles"]["stability"]
     parts = []
-    parts.append(
-        f"Accuracy scored {s['accuracy']} ({b['accuracy']}) and stability scored "
-        f"{s['stability']} ({b['stability']}) on the Praxis 0-100 scale.")
+    parts.append(_score_sentence(obj))
     parts.append(
         f"Accuracy percentile: {_pct_phrase(pa)}. "
         f"Stability percentile: {_pct_phrase(ps)}.")
@@ -144,68 +179,88 @@ def template_summary(obj):
             parts.append("The on-device image-quality model accepted the final capture.")
         else:
             parts.append("The on-device image-quality model recommends repeating the capture.")
-    parts.append("These are prototype task-performance measures, not a clinical "
-                 "or diagnostic assessment.")
+    parts.append(DISCLAIMER)
     return " ".join(parts)
 
 
 # ------------------------------------------------------------- llama.cpp
-_PROMPT = """Select the clearest explanation for this rehabilitation tracing
-session. Return the index of exactly one supplied candidate. The output grammar
-enforces the allowed index.
+_PROMPT = """<|im_start|>system
+You write factual plain-language analysis for one rehabilitation tracing session.
+Use only supplied facts. Never provide diagnosis, medical advice, treatment
+guidance, recovery claims, or unsupported comparisons.<|im_end|>
+<|im_start|>user
+Write JSON containing one concise analysis sentence of 20 to 45 words.
 
-DECISION FACTS:
-%s
+Requirements:
+- Interpret one to three supplied measurements without judging health.
+- State measurement names and exact values neutrally; do not label a value as
+  high, low, good, bad, normal, abnormal, acceptable, or minimal.
+- Use this style: "Mean spatial error was <value> mm, pattern coverage was
+  <value>%, and tremor RMS was <value> deg/s." Select only available facts.
+- Do not add an explanation after reporting the measurements.
+- Do not repeat the scores, bands, image decision, or limitation; they are
+  added separately by deterministic code.
+- Do not say a value indicates or suggests anything.
+- Do not invent numbers, causes, trends, success claims, or comparisons.
+- Do not repeat yourself.
 
-CANDIDATE STYLES:
-%s
+Session facts:
+{facts}
+<|im_end|>
+<|im_start|>assistant
 """
 
 
-def _concise_candidate(obj):
-    s, b = obj["scores"], obj["bands"]
-    pa, ps = obj["percentiles"]["accuracy"], obj["percentiles"]["stability"]
-    parts = [
-        f"Accuracy scored {s['accuracy']} ({b['accuracy']}), with "
-        f"{_pct_phrase(pa).lower()}.",
-        f"Stability scored {s['stability']} ({b['stability']}), with "
-        f"{_pct_phrase(ps).lower()}.",
-    ]
-    image_quality = obj.get("image_quality") or {}
-    if image_quality.get("ok"):
-        action = ("accepted the final capture" if
-                  image_quality.get("classification") == "valid" else
-                  "recommends repeating the final capture")
-        parts.append(f"The on-device image-quality model {action}.")
-    parts.append("These are prototype task-performance measures, not a clinical "
-                 "or diagnostic assessment.")
-    return " ".join(parts)
+def _image_quality_statement(obj):
+    quality = obj.get("image_quality") or {}
+    if not quality.get("ok"):
+        return "The image-quality model was unavailable; deterministic scores were preserved."
+    if quality.get("classification") == "valid":
+        return "The on-device image-quality model accepted the final capture."
+    return "The on-device image-quality model recommends repeating the final capture."
 
 
-def _candidate_summaries(obj):
-    candidates = [template_summary(obj), _concise_candidate(obj)]
-    return list(dict.fromkeys(candidates))
+def _generation_facts(obj):
+    return {
+        "mean_spatial_error_mm": obj["metrics"].get("mean_dev_mm"),
+        "pattern_coverage_pct": obj["metrics"].get("coverage_pct"),
+        "tremor_rms_deg_s": obj["metrics"].get("tremor_rms_deg_s"),
+        "completion_time_s": obj["metrics"].get("completion_time_seconds"),
+        "quality_warnings": obj.get("quality_warnings") or [],
+    }
+
+
+def _validate_analysis(analysis, obj):
+    if not isinstance(analysis, str) or not 70 <= len(analysis.strip()) <= 500:
+        return False
+    lower = analysis.lower()
+    unsupported = (
+        "acceptable", "within limits", "minimal", "normal", "abnormal",
+        "indicat", "suggest", "successful", "reliable", "consistent",
+        "patient", "position", "movement", "slight", "substantial",
+        "good", "bad", "excellent", "poor", "high", "low", "moderate",
+    )
+    if any(term in lower for term in unsupported):
+        return False
+    without_decimals = re.sub(r"(?<=\d)\.(?=\d)", "", analysis)
+    if len(re.findall(r"[.!?](?:\s|$)", without_decimals)) > 2:
+        return False
+    framed = " ".join((_score_sentence(obj), analysis.strip(),
+                       _image_quality_statement(obj), DISCLAIMER))
+    return validate_summary(framed, obj)
 
 
 def _run_llama(obj):
     if not (LLAMA_BIN and LLAMA_MODEL and os.path.exists(LLAMA_BIN)
             and os.path.exists(LLAMA_MODEL)):
         return None
-    candidates = _candidate_summaries(obj)
-    image_quality = obj.get("image_quality") or {}
-    decision_facts = {
-        "accuracy_band": obj["bands"].get("accuracy"),
-        "stability_band": obj["bands"].get("stability"),
-        "image_quality": image_quality.get("classification"),
-        "quality_warnings": obj.get("quality_warnings") or [],
-    }
-    styles = ["detailed metrics and quality", "concise scores and quality"]
-    prompt = _PROMPT % (json.dumps(decision_facts), json.dumps(styles))
-    selection_schema = json.dumps({
+    prompt = _PROMPT.format(
+        facts=json.dumps(_generation_facts(obj), separators=(",", ":")))
+    summary_schema = json.dumps({
         "type": "object",
-        "properties": {"selection": {"type": "integer",
-                                      "enum": list(range(len(candidates)))}},
-        "required": ["selection"],
+        "properties": {"analysis": {"type": "string", "minLength": 70,
+                                       "maxLength": 500}},
+        "required": ["analysis"],
         "additionalProperties": False,
     }, separators=(",", ":"))
     try:
@@ -213,26 +268,30 @@ def _run_llama(obj):
         env["LD_LIBRARY_PATH"] = LLAMA_LIBS
         env["GGML_BACKEND_PATH"] = LLAMA_CPU_BACKEND
         p = subprocess.run(
-            [LLAMA_BIN, "-m", LLAMA_MODEL, "-p", prompt, "-n", "12",
-             "--temp", "0.0", "-no-cnv", "-t", "3", "--prio", "-1",
-             "--poll", "0", "-c", "512", "--no-display-prompt",
+            [LLAMA_BIN, "-m", LLAMA_MODEL, "-p", prompt, "-n", "120",
+             "--temp", "0.2", "--top-p", "0.9", "-no-cnv", "-t", "3",
+             "--prio", "-1", "--poll", "0", "-c", "1024", "--no-display-prompt",
              "--no-warmup", "-fit", "off", "--simple-io",
-             "-lv", "0", "--no-perf", "--json-schema", selection_schema],
+             "--repeat-penalty", "1.12", "--repeat-last-n", "128",
+             "-lv", "0", "--no-perf", "--json-schema", summary_schema],
             capture_output=True, text=True, timeout=LLAMA_TIMEOUT_S, env=env)
     except (subprocess.TimeoutExpired, OSError):
         return None
     out = p.stdout
     decoder = json.JSONDecoder()
-    selections = []
+    analyses = []
     for match in re.finditer(r"\{", out):
         try:
             candidate, _ = decoder.raw_decode(out[match.start():])
         except (json.JSONDecodeError, ValueError):
             continue
-        selection = candidate.get("selection") if isinstance(candidate, dict) else None
-        if isinstance(selection, int) and 0 <= selection < len(candidates):
-            selections.append(selection)
-    return candidates[selections[-1]] if selections else None
+        analysis = candidate.get("analysis") if isinstance(candidate, dict) else None
+        if isinstance(analysis, str):
+            analyses.append(analysis.strip())
+    if not analyses or not _validate_analysis(analyses[-1], obj):
+        return None
+    return " ".join((_score_sentence(obj), analyses[-1],
+                     _image_quality_statement(obj), DISCLAIMER))
 
 
 def explain(obj):

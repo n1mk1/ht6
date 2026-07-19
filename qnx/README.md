@@ -16,15 +16,16 @@ is stored locally as JSON and can be uploaded to the isolated Praxis web API.
 
 Open `http://qnxpi23.local:8080/` and complete these steps:
 
-1. Enter the participant username and use the persistent live camera feed to
-   position the complete mat inside the frame.
+1. Enter the participant username, select the tracing hand, and use the
+   persistent live camera feed to position the complete mat inside the frame.
 2. Select **Start**. Keep the pen still during the two-second IMU bias
    calibration, then trace the blue path in red.
 3. Select **Stop** and lift the pen out of the camera view.
 4. Select **Capture & Score**. The camera captures one settled frame containing
    both paths, computes deterministic scores, validates image usability with the
-   trained model, runs the grounded QNX llama analysis, saves the bundle, and
-   attempts the upload.
+   trained model, generates new grounded analysis text with Qwen through QNX
+   llama.cpp, saves the bundle, and attempts the upload. The LLM does not choose
+   between prewritten summaries.
 
 Use the same username on the web dashboard to connect the run to the correct
 participant record. Matching on the backend is case-insensitive and ignores
@@ -44,11 +45,13 @@ surrounding spaces.
 See [`AI_ARCHITECTURE.md`](AI_ARCHITECTURE.md) for the model design, captured
 training data, QNX llama.cpp package and GGUF setup, latency optimization
 process, failure isolation, measured results, and engineering tradeoffs.
+See [`WEBAPP_INTEGRATION.md`](WEBAPP_INTEGRATION.md) for the stable HTTP
+contract, device authentication boundary, durable outbox, and handoff checklist.
 
 The canonical task metadata is currently:
 
 ```json
-{"type": "path_tracing", "version": "mat_v1", "difficulty": 1}
+{"type": "path_tracing", "version": "mat_v1", "difficulty": 1, "hand": "right"}
 ```
 
 Change task metadata only when the actual template or relevant difficulty
@@ -68,26 +71,35 @@ Each run is saved under `~/steadyeye/sessions/<session_id>/`:
 | `preview.bmp` | Latest preview frame |
 | `session.json` | Complete schema `3.0` run bundle |
 
-The complete payload is also copied to `~/steadyeye/outbox/latest.json` and
-posted to `BACKEND_URL + BACKEND_RUNS_PATH`. Upload is best-effort: a network or
-API failure never removes the local session. The current device code does not
-automatically replay older outbox entries, so retrying a failed historical
-upload remains an operational/manual step.
+One immutable copy of every payload is queued by device/session identity under
+`~/steadyeye/outbox/pending/`. A background worker posts it to
+`BACKEND_URL + BACKEND_RUNS_PATH`, retries network errors, HTTP 429, and 5xx
+responses with bounded exponential backoff, and moves accepted payloads to
+`sent/`. HTTP 401, 409, 422, and other non-retryable responses move to
+`failed/` for inspection. Upload never blocks or removes local capture data.
+`outbox/latest.json` remains only a compatibility pointer to the newest payload.
+After correcting a device key, restart the server; each failed 401 payload is
+requeued once. Worker failures are exposed by `/api/outbox/status` and the UI.
 
 ## Web API configuration
 
-Launch the QNX server with:
+Create `~/steadyeye/device.env` on the Pi using `device.env.example` as the
+template. This file is excluded from deployment sync and source control. The
+normal `make server` and `make deploy` targets load it automatically:
 
 ```bash
+# ~/steadyeye/device.env on the QNX Pi
 BACKEND_URL=http://<backend-computer-lan-ip>:8000 \
 BACKEND_RUNS_PATH=/api/v1/qnx/sessions \
-BACKEND_KEY=<optional-shared-device-key> \
-~/venv/bin/python server/server.py
+BACKEND_KEY=<shared-device-key>
+DEVICE_ID=qnx_pi_23
 ```
 
 Do not use `localhost` for a backend running on another computer. If
 `BACKEND_KEY` is set, it must match `PRAXIS_DEVICE_KEY` on the backend. The
-legacy default path `/api/runs` remains accepted by the current API.
+QNX client always uses the versioned `/api/v1/qnx/sessions` endpoint by default.
+Do not put Auth0 browser tokens in `device.env`; `BACKEND_KEY` is only the
+device credential sent as `X-Device-Key`.
 
 The emitted schema `3.0` contains username, device/session identity, task and
 version metadata, timing, scores and score definitions, metrics, quality,
@@ -113,6 +125,7 @@ the deterministic scoring and image-quality tests from the repository root:
 ```bash
 python3 qnx/tests/test_praxis.py
 python3 qnx/tests/test_image_quality.py
+python3 qnx/tests/test_outbox.py
 ```
 
 ## Hardware and setup
@@ -145,5 +158,5 @@ normal scoring path. See
   tremor-frequency analysis.
 - Percentiles are unavailable unless a compatible versioned reference stratum
   has enough real samples.
-- QNX upload currently preserves only `outbox/latest.json` as the forwarding
-  pointer and has no automatic replay worker.
+- Device authentication is a shared key for this prototype; production should
+  provision a rotatable per-device credential.

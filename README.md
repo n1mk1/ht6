@@ -28,13 +28,12 @@ accepted QNX payload unchanged in addition to storing normalized fields.
 | Directory | Purpose | Documentation |
 |---|---|---|
 | `qnx/` | QNX camera, IMU capture, deterministic scoring, and upload | [`qnx/README.md`](qnx/README.md) |
-| `freesolo/` | Frozen performance-comparison model contract and training assets | [`freesolo/README.md`](freesolo/README.md) |
+| `freesolo/` | Versioned performance-comparison model contract and training assets | [`freesolo/README.md`](freesolo/README.md) |
 | `backend/` | Versioned ingestion and longitudinal REST API | [`backend/README.md`](backend/README.md) |
 | `frontend/` | Responsive participant session dashboard | [`frontend/README.md`](frontend/README.md) |
 
 The web application design and integration boundaries are described in
-[`WEBAPP.md`](WEBAPP.md). The FreeSOLO documents retain the historical
-"RehabTrace" name because they describe the frozen model contract and dataset.
+[`WEBAPP.md`](WEBAPP.md).
 
 ## Current functionality
 
@@ -108,14 +107,15 @@ QNX local outbox; they do not delete the completed run.
 
 ## FreeSOLO status
 
-The real integration boundary is
-`backend/src/praxis_api/freesolo.py`. The current QNX payload does not contain
-all metrics required by FreeSOLO's frozen input contract, so normal ingestion
-currently records analysis as `unavailable`. It never substitutes a fake
-regression result. An explicit mock exists only for development and is rejected
-when `PRAXIS_ENVIRONMENT=production`.
+The real integration boundary is `backend/src/praxis_api/freesolo.py`. Contract
+`praxis-freesolo-2.0` uses only fields emitted by QNX schema `3.0`. The adapter
+requires compatible task and score versions, validates model semantics before
+persistence, and never substitutes a fake regression score or confidence. An
+explicit mock exists only for development and is rejected in production.
 
-See [`WEBAPP.md`](WEBAPP.md) for the missing model fields and adapter behavior.
+No v2 hosted adapter is recorded as trained or deployed yet. See
+[`freesolo/TRAINING_RUNS.md`](freesolo/TRAINING_RUNS.md) for the auditable run
+status and [`WEBAPP.md`](WEBAPP.md) for integration behavior.
 
 ## Verification
 

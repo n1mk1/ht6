@@ -54,16 +54,21 @@ compatible baseline comparison for a participant.
 ## FreeSOLO boundary
 
 `backend/src/praxis_api/freesolo.py` is the only integration point. It builds
-the frozen comparison input and calls the existing OpenAI-compatible deployed
+the versioned comparison input and calls the configured OpenAI-compatible deployed
 endpoint. Responses are checked before persistence.
 
-The current QNX schema does not provide `path_inside_percent`, `pause_count`,
-`correction_count`, or `angular_instability_rms`, which are mandatory in the
-current FreeSOLO contract. Such sessions are stored with model status
-`unavailable`; no model score or confidence is fabricated. The existing model
-output is qualitative, so `regression_score` and `confidence` stay null for
-real responses. `regression_flag` is only the transparent mapping of a valid
-`overall_pattern == declined` response.
+Contract `praxis-freesolo-2.0` uses the actual QNX accuracy/stability scores,
+coverage, path-deviation measurements, completion time, tremor, peak angular
+velocity, capture counts, calibration status, warnings, and score version. It
+does not require legacy synthetic fields such as pause or correction counts.
+
+The adapter independently recalculates directions, marks task/score-version or
+capture-quality mismatches unreliable, and rejects semantically wrong,
+ungrounded, or clinically unsafe model output. The output is qualitative, so
+`regression_score` and `confidence` stay null for real responses.
+`regression_flag` is only the transparent mapping of an accepted
+`overall_pattern == declined` response. No v2 hosted run is considered active
+until its ID and held-out evaluation are recorded in `freesolo/TRAINING_RUNS.md`.
 
 ## Local development
 

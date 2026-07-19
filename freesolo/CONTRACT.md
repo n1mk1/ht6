@@ -1,89 +1,105 @@
-# RehabTrace FreeSolo Contract (frozen)
+# Praxis FreeSOLO contract
 
-## Task
-Single-turn: given a deterministic comparison between a participant's reference
-and current session on the same standardized path-tracing task, produce a
-concise, grounded, non-diagnostic therapist-facing explanation. The model
-never computes numbers itself — all values in `changes` are pre-calculated
-and authoritative.
+Contract version: `praxis-freesolo-2.0`
 
-## Input shape
+## Boundary
 
+The backend selects two runs and calculates their changes. FreeSOLO only
+describes those supplied values. It must not process raw camera/IMU data,
+recalculate a metric, select another baseline, infer a cause, recommend
+treatment, diagnose a condition, or compare against population norms.
+
+The sessions are directly interpretable only when task type, task version,
+difficulty, hand metadata, and score version are compatible and required
+capture-quality checks pass. Otherwise `comparison_reliability` is
+`unreliable`, which overrides any apparent direction.
+
+## Input
+
+```json
 {
-"participant_id": string,
-"task_type": "path_tracing",
-"reference_session": {
-"session_id": string, "timestamp": string,
-"metrics": {
-"path_inside_percent": number, "mean_deviation_mm": number,
-"max_deviation_mm": number, "completion_time_seconds": number,
-"pause_count": int, "correction_count": int,
-"angular_instability_rms": number, "peak_angular_velocity_dps": number
-},
-"quality": {
-"camera_tracking_percent": number, "imu_capture_percent": number,
-"calibration_valid": bool, "dropped_frame_count": int,
-"dropped_sample_count": int, "warnings": [string]
+  "contract_version": "praxis-freesolo-2.0",
+  "participant_id": "string",
+  "reference_session": {
+    "session_id": "string",
+    "timestamp": "RFC 3339 string",
+    "task": {"type": "string", "version": "string", "difficulty": 1, "hand": "right"},
+    "score_version": "string",
+    "scores": {"accuracy": 90.0, "stability": 90.0},
+    "metrics": {
+      "coverage_pct": 72.4,
+      "mean_dev_mm": 1.86,
+      "max_dev_mm": 5.0,
+      "rms_dev_mm": 2.22,
+      "completion_time_seconds": 42.3,
+      "tremor_rms_deg_s": 5.18,
+      "peak_angular_velocity_deg_s": 31.5
+    },
+    "quality": {
+      "calibration_valid": true,
+      "n_ref_slices": 140,
+      "n_scored_slices": 101,
+      "imu_samples_received": 6380,
+      "imu_samples_invalid": 2,
+      "imu_rate_hz": 151.0,
+      "warnings": []
+    }
+  },
+  "current_session": "same shape as reference_session",
+  "changes": {
+    "accuracy_score": {
+      "reference": 90.0,
+      "current": 82.0,
+      "absolute_change": -8.0,
+      "direction": "declined",
+      "contextual": false
+    }
+  },
+  "comparison_reliability": "reliable",
+  "reliability_reasons": [],
+  "permitted_next_steps": ["contract-controlled strings"]
 }
-},
-"current_session": { <same shape as reference_session> },
-"changes": {
-"<one of the 8 metric keys above>": {
-"absolute_change": number,
-"direction": "improved" | "declined" | "stable"
-},
-... one entry per metric key ...
-},
-"comparison_reliability": "reliable" | "unreliable",
-"permitted_next_steps": [string, ...]   // varies per input; model must pick from THIS list
-}
+```
 
+`changes` contains all nine keys: `accuracy_score`, `stability_score`,
+`coverage_pct`, `mean_dev_mm`, `max_dev_mm`, `rms_dev_mm`,
+`completion_time_seconds`, `tremor_rms_deg_s`, and
+`peak_angular_velocity_deg_s`.
 
+## Output
 
-Assumption: `"stable"` is a valid `direction` value (needed for the "mostly stable" scenario category — your example only showed improved/declined).
-
-## Output schema (must match exactly, no Markdown fences, no extra text)
+```json
 {
-"overall_pattern": "improved" | "declined" | "stable" | "mixed" | "unreliable",
-"observations": [
-{ "statement": string, "metric_keys": [string, ...] }
-],                              // exactly 2 or 3 entries
-"conflicts_or_limitations": [string, ...],   // may be empty list
-"possible_next_step": string,   // must exactly equal one entry in input.permitted_next_steps
-"therapist_review_required": true            // always literally true
+  "overall_pattern": "declined",
+  "observations": [
+    {"statement": "string", "metric_keys": ["accuracy_score"]},
+    {"statement": "string", "metric_keys": ["stability_score"]}
+  ],
+  "conflicts_or_limitations": ["string"],
+  "possible_next_step": "exact contract-controlled string",
+  "therapist_review_required": true
 }
+```
 
+The object has exactly these five keys. There are exactly two observations and
+one or two limitations. Both primary dimensions must be cited.
 
+## Deterministic semantics
 
-## Grounding rules (hard constraints)
-- Every `metric_keys` entry cited in `observations` must be one of the 8 metric keys that appear in `changes`.
-- Every number mentioned in any `statement` must literally match a value from `reference_session.metrics`, `current_session.metrics`, or `changes` — never invented, never recomputed.
-- `possible_next_step` must be copied verbatim from `input.permitted_next_steps` — never invented.
-- `therapist_review_required` is always `true` — never conditional.
-- If `comparison_reliability == "unreliable"`, `overall_pattern` must be `"unreliable"`, and no improvement/decline claim may appear anywhere in the output; `conflicts_or_limitations` must name the specific quality problem (e.g. low camera tracking, invalid calibration).
-- Never use language implying diagnosis, recovery, disease, or independent treatment recommendations (per the safe-language list in the original spec).
+- Accuracy/stability both stable: `stable`.
+- At least one improves and neither declines: `improved`.
+- At least one declines and neither improves: `declined`.
+- One improves and one declines: `mixed`.
+- Any recorded reliability reason: `unreliable`.
+- Completion time and peak angular velocity are contextual and never determine
+  the overall pattern.
 
-## `overall_pattern` decision rule
-- `improved` — the important metrics broadly moved in the improved direction
-- `declined` — the important metrics broadly moved in the declined direction
-- `stable` — changes are small/inconsistent with no meaningful overall direction
-- `mixed` — some important dimensions improved, others declined
-- `unreliable` — data quality makes the comparison unsafe to interpret (overrides all of the above)
+Every number in an observation must exactly match a supplied input value. Each
+observation must describe the direction of its cited non-contextual metrics.
+For unreliable inputs, observations may state recorded values but must not
+claim improvement or decline, and a supplied reliability reason must be
+explained.
 
-## Product framing: relapse / plateau / return-to-baseline
-These are product concepts, not new schema fields — they map onto the existing
-`overall_pattern` values with no contract change:
-- "Relapse" -> `declined` (current session declined relative to reference)
-- "Plateau" -> `stable` (current session is stable relative to reference)
-- "Return to / matches earlier baseline" -> `improved` or `stable`, when the
-  backend sets `reference_session` to an earlier baseline rather than the
-  immediately-prior session
-
-Language rule: never use "remission," "relapse," or other disease-recurrence
-or recovery terms in generated text. Use neutral task-performance phrasing:
-- Instead of "relapsed" -> "performance declined relative to the reference session"
-- Instead of "in remission" / "recovered" -> "current performance matches (or
-  exceeds) the reference session"
-
-FreeSolo never chooses which session is the reference — that is a backend/
-therapist decision already reflected in the input's `reference_session`.
+The output describes performance on the measured task only. It is not a
+diagnosis, validated clinical deterioration, evidence of recovery, or a
+treatment recommendation.

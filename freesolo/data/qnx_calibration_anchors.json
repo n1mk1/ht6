@@ -1,0 +1,61 @@
+{
+  "provenance": {
+    "source": "QNX schema 3.0 session bundles fetched from qnx_pi_23",
+    "fetched_at": "2026-07-19",
+    "purpose": "Deidentified physical ranges for synthetic FreeSOLO examples",
+    "privacy": "Usernames, traces, timestamps, and device identifiers are intentionally omitted",
+    "warning": "These are two prototype calibration runs, not clinical norms or longitudinal observations"
+  },
+  "good_anchor": {
+    "source_session_id": "session_015856",
+    "score_version": "praxis-score-1.0.0",
+    "scores": {
+      "accuracy": 49.9,
+      "stability": 42.2
+    },
+    "metrics": {
+      "coverage_pct": 72.4,
+      "mean_dev_mm": 1.86,
+      "max_dev_mm": 2.82,
+      "rms_dev_mm": 1.94,
+      "completion_time_seconds": 12.8,
+      "tremor_rms_deg_s": 5.18,
+      "peak_angular_velocity_deg_s": 168.91
+    },
+    "quality": {
+      "calibration_valid": true,
+      "n_ref_slices": 87,
+      "n_scored_slices": 63,
+      "imu_samples_received": 2106,
+      "imu_samples_invalid": 0,
+      "imu_rate_hz": 166.8,
+      "warnings": []
+    }
+  },
+  "bad_anchor": {
+    "source_session_id": "session_021311",
+    "score_version": "praxis-score-1.0.0",
+    "scores": {
+      "accuracy": 7.4,
+      "stability": 0.3
+    },
+    "metrics": {
+      "coverage_pct": 100.0,
+      "mean_dev_mm": 13.04,
+      "max_dev_mm": 32.78,
+      "rms_dev_mm": 15.41,
+      "completion_time_seconds": 16.2,
+      "tremor_rms_deg_s": 35.91,
+      "peak_angular_velocity_deg_s": 313.97
+    },
+    "quality": {
+      "calibration_valid": true,
+      "n_ref_slices": 99,
+      "n_scored_slices": 99,
+      "imu_samples_received": 2688,
+      "imu_samples_invalid": 0,
+      "imu_rate_hz": 167.4,
+      "warnings": []
+    }
+  }
+}

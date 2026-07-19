@@ -41,7 +41,7 @@ function session(id: string, date: string, accuracy: number): Session {
     trace: { frame: [100, 50], reference: [[0, 25], [100, 25]], red: [[0, 28], [100, 26]] },
     model_result: {
       status: 'unavailable',
-      adapter: 'freesolo_http',
+      adapter: 'freesolo_http_v2',
       model_version: null,
       regression_score: null,
       regression_flag: null,
@@ -49,7 +49,7 @@ function session(id: string, date: string, accuracy: number): Session {
       overall_pattern: null,
       result: null,
       error_code: 'missing_required_metrics',
-      error_detail: 'pause_count',
+      error_detail: null,
     },
     deterministic_comparison: id === 'session-002' ? {
       compatible: true,
@@ -123,7 +123,7 @@ describe('Praxis dashboard', () => {
     expect(await screen.findByText('Latest session')).toBeInTheDocument()
     expect(screen.getByText('85.0')).toBeInTheDocument()
     expect(screen.getByText('Quality checks passed')).toBeInTheDocument()
-    expect(screen.getByText('Prediction unavailable')).toBeInTheDocument()
+    expect(screen.getByText('Analysis unavailable')).toBeInTheDocument()
     expect(screen.getByTestId('trend-chart')).toBeInTheDocument()
     expect(screen.getByText(/not a diagnosis or validated clinical deterioration/i)).toBeInTheDocument()
   })

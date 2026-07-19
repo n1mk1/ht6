@@ -123,7 +123,7 @@ class PraxisService:
 
             doc["model_result"] = {
                 "status": "pending",
-                "adapter": "freesolo_http",
+                "adapter": "freesolo_http_v2",
                 "model_version": None,
                 "regression_score": None,
                 "regression_flag": None,

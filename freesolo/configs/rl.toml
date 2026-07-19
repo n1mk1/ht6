@@ -1,21 +1,19 @@
 model = "Qwen/Qwen3.5-4B"
 algorithm = "grpo"
+thinking = false
+seed = 42
 
-# Environment: upload this project folder with
-# `flash env push --name my-env .`, then paste the returned id below.
-# If the environment reads secrets with os.environ, list only the env var names here.
-# Values are read from your shell or .env at submit time and are not stored in the spec.
 [environment]
-id = ""
-
-# secrets = ["SERPAPI_API_KEY"]
+id = "bananagoo/praxis-freesolo"
 
 [train]
+# Completed SFT source. Do not set lora_rank/lora_alpha on a warm start.
+init_from_adapter = "flash-1784438906-35d1b389"
 epochs = 1
-max_examples = 2  # rows to train on; the starter dataset has 2 (raise as your dataset grows)
-lora_rank = 32
-# Constrain every rollout with guided decoding (a JSON schema is shown; regex and
-# choice forms also parse) — see `flash train --doc`:
-# structured_outputs = '{"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}'
-# GPU and HF artifacts are managed automatically by the platform: the GPU is
-# the cheapest fitting managed class, and artifacts live in a private environment-scoped repo.
+max_examples = 194
+group_size = 4
+batch_size = 8
+temperature = 0.9
+max_context_tokens = 4096
+max_completion_tokens = 500
+structured_outputs = '''{"type":"object","additionalProperties":false,"properties":{"overall_pattern":{"type":"string","enum":["declined","improved","mixed","stable","unreliable"]},"observations":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"object","additionalProperties":false,"properties":{"statement":{"type":"string","minLength":16,"maxLength":320},"metric_keys":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"string","enum":["accuracy_score","stability_score","coverage_pct","mean_dev_mm","max_dev_mm","rms_dev_mm","completion_time_seconds","tremor_rms_deg_s","peak_angular_velocity_deg_s"]}}},"required":["statement","metric_keys"]}},"conflicts_or_limitations":{"type":"array","minItems":1,"maxItems":2,"items":{"type":"string","minLength":16,"maxLength":320}},"possible_next_step":{"type":"string"},"therapist_review_required":{"type":"boolean","enum":[true]}},"required":["overall_pattern","observations","conflicts_or_limitations","possible_next_step","therapist_review_required"]}'''

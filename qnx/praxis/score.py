@@ -9,7 +9,7 @@ never touches any of this.
 Version the scale: any change to a formula, tolerance or band boundary MUST bump
 SCORE_VERSION so stored sessions remain interpretable.
 """
-SCORE_VERSION = "praxis-score-1.1.0"
+SCORE_VERSION = "praxis-score-1.2.0"
 
 # --- Accuracy: spatial error + coverage -----------------------------------
 # Calibrated from two QNX baseline runs on the fixed mat/camera setup:
@@ -19,6 +19,9 @@ SCORE_VERSION = "praxis-score-1.1.0"
 # good anchor had only 72.4% detected coverage despite a visually accurate trace.
 ACC_GOOD_MM = 1.86
 ACC_BAD_MM = 13.04
+# Below this coverage, the observed fragment is not representative enough to
+# assign an accuracy score. Raw deviation and coverage remain in the session.
+MIN_ACCURACY_COVERAGE_PCT = 60.0
 
 # --- Stability: high-frequency tool oscillation (tremor) ------------------
 # Calibrated from the same baseline runs:
@@ -56,6 +59,8 @@ def accuracy_score(mean_dev_mm, coverage_pct):
     Returns None if inputs are missing (never fabricate)."""
     if mean_dev_mm is None or coverage_pct is None:
         return None
+    if coverage_pct < MIN_ACCURACY_COVERAGE_PCT:
+        return None
     return _anchor_score(mean_dev_mm, ACC_GOOD_MM, ACC_BAD_MM)
 
 
@@ -86,6 +91,7 @@ def score_definitions():
             "inputs": ["mean_dev_mm", "coverage_pct"],
             "formula": "linear lower-is-better anchor scale: good->90, bad->10",
             "coverage_role": "quality metric only; not a score multiplier",
+            "minimum_coverage_pct": MIN_ACCURACY_COVERAGE_PCT,
             "ACC_GOOD_MM": ACC_GOOD_MM,
             "ACC_BAD_MM": ACC_BAD_MM,
             "good_anchor": "KatieCalibrationGood session_015856",

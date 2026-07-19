@@ -11,7 +11,7 @@ Praxis keeps the original measurement workflow:
 5. The recorded IMU samples produce the deterministic stability score.
 
 AI is added around that workflow, not in place of it. The image-quality model
-decides whether the final frame is usable, and QNX `llama.cpp` selects a clear,
+decides whether the final frame is usable, and QNX `llama.cpp` generates a
 fact-grounded explanation. Neither model can change accuracy or stability.
 
 This boundary is important for a cannot-fail embedded application. A model
@@ -39,8 +39,8 @@ deterministic vision score        deterministic tremor score
            +----------+----------+
            |                     |
            v                     v
- image-quality classifier   QNX llama.cpp selector
- valid / repeat warning     grounded explanation
+ image-quality classifier   QNX llama.cpp generator
+ valid / repeat warning     generated explanation
            |                     |
            +----------+----------+
                       v
@@ -57,8 +57,8 @@ scoring, banding, percentile lookup, image validation, then explanation.
 | Camera acquisition | `vision/rt_vision` | Native QNX C++ and `libcamapi` | Live preview and final BMP |
 | Stability acquisition | `imu/imu_recorder.py` | QNX Python | Timestamped MPU6050 samples |
 | Image-quality AI | `image_quality/model/quality_model.json` | Dependency-free QNX Python | Valid versus unusable final frame |
-| Narrative AI | `SmolVLM-256M-Instruct-Q8_0.gguf` | Official QNX `llama.cpp` package | Select a grounded explanation style |
-| Optional vision projector | `mmproj-SmolVLM-256M-Instruct-Q8_0.gguf` | QNX `llama-mtmd-cli` | Secondary multimodal experiments, not the scoring path |
+| Summary AI | `qwen2.5-0.5b-instruct-q4_k_m.gguf` | Official QNX `llama.cpp` package | Generate a plain-language session summary |
+| Optional vision model | SmolVLM language model + projector | QNX `llama-mtmd-cli` | Secondary multimodal experiments, not the scoring path |
 
 Everything runs on the Raspberry Pi 5. No frame, IMU sample, prompt, or result
 is sent to a cloud inference service.
@@ -230,17 +230,20 @@ The runtime is the official QNX OSS `llama.cpp` package, version
 ~/steadyeye/vendor/qnx-root/
 ```
 
-The language model is the upstream Apache-2.0 SmolVLM 256M Instruct GGUF. Its
-language component has 162.97 million parameters and is Q8_0 quantized:
+The production summary model is the upstream Apache-2.0 Qwen2.5 0.5B Instruct
+GGUF. It has approximately 0.49 billion parameters and is Q4_K_M quantized.
+SmolVLM remains installed with its projector for optional multimodal
+experiments, but it is not the summary generator:
 
 | File | Bytes | SHA-256 |
 |---|---:|---|
+| `qwen2.5-0.5b-instruct-q4_k_m.gguf` | 491,400,032 | `74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db` |
 | `SmolVLM-256M-Instruct-Q8_0.gguf` | 175,054,528 | `2a31195d3769c0b0fd0a4906201666108834848db768af11de1d2cef7cd35e65` |
 | `mmproj-SmolVLM-256M-Instruct-Q8_0.gguf` | 103,769,856 | `7e943f7c53f0382a6fc41b6ee0c2def63ba4fded9ab8ed039cc9e2ab905e0edd` |
 
-The 30 captured Praxis images do not train or fine-tune SmolVLM. They train only
-the image-quality classifier. SmolVLM is an upstream pretrained model used here
-through `llama.cpp`.
+The 30 captured Praxis images do not train or fine-tune Qwen or SmolVLM. They
+train only the image-quality classifier. Both language/vision-language models
+are upstream pretrained models executed locally through `llama.cpp`.
 
 ### 7.2 Why the projector is not in the score path
 
@@ -251,30 +254,45 @@ gate would add latency, more memory, nondeterministic wording, and a second
 image interpretation that is harder to calibrate from only 30 examples.
 
 The custom classifier is faster, traceable, and trained on this exact camera.
-SmolVLM is therefore used for explanation policy, where failure has no effect on
-the measurements.
+Qwen therefore generates text only after all measurements and quality results
+exist, where generation failure has no effect on those measurements.
 
-### 7.3 Grounded narrative selection
+### 7.3 Grounded summary generation
 
-Early tests asked the 256M model to author several fact-dense sentences. JSON
-grammar made the structure valid, but the small model could repeat text or omit
-required facts. Regenerating an approved paragraph also took approximately
-10.5 to 16 seconds.
+`praxis/explain.py` gives Qwen a compact structured record containing spatial
+error, coverage, tremor, completion time, and quality warnings. Qwen generates
+the central analytic sentence shown in the dashboard.
+Deterministic code surrounds it with the exact score, image-decision, and
+prototype-limitation sentences.
 
-The production design gives `llama.cpp` a smaller, safer task:
+This is token-by-token text generation through `llama-completion`. There is no
+candidate-summary list, classification label, retrieval step, ranking step, or
+choice between prewritten responses. For example, the deployed QNX smoke test
+generated this measurement-specific sentence from its supplied facts:
 
-1. Python constructs a detailed and a concise summary from validated facts.
-2. The model sees only score bands, image classification, warnings, and two
-   style names.
-3. A JSON schema restricts output to `{"selection": 0}` or
-   `{"selection": 1}`.
-4. Python maps the selected index to the untouched approved text.
-5. `validate_summary` checks every number and requires exact scores and bands.
-6. Any process, timeout, parse, index, or validation failure uses the
-   deterministic template.
+> The mean spatial error was 1.1 mm, pattern coverage was 98.4%, and tremor RMS
+> was 0.7 deg/s.
 
-The model makes a real narrative-policy decision, but grammar prevents it from
-inventing or editing a clinical claim.
+Generation is bounded by several independent controls:
+
+1. The prompt requests one concise analytic sentence and supplies only facts
+   from the completed session.
+2. Qwen generates that analysis using one to three measured factors.
+3. Code adds both scores and bands as the exact first sentence.
+4. Code adds the classifier decision as an exact sentence.
+5. Code adds the exact prototype/non-diagnostic caveat as the final sentence.
+6. A llama.cpp JSON schema restricts output to one bounded `analysis` string.
+7. A dedicated analysis validator rejects invented numbers, extra sentences,
+   unsupported qualitative thresholds, causal language, and comparisons.
+8. `validate_summary` rejects every numeric value not present in the source
+   object, altered scores or bands, a missing caveat, a wrong capture decision,
+   and known unsupported medical claims.
+9. Any process, timeout, parse, or validation failure uses the deterministic
+   template.
+
+The generated middle sentence is not a score input and cannot modify the
+saved measurements. `source: "llama.cpp"` is reported only when generated prose
+passes the complete validation contract.
 
 ### 7.4 QNX runtime details
 
@@ -294,23 +312,23 @@ The deployed command uses:
 | Setting | Value | Reason |
 |---|---:|---|
 | Executable | `llama-completion` | Avoid interactive chat-wrapper overhead |
-| Context | 512 tokens | The selector prompt is intentionally small |
-| Generation limit | 12 tokens | Only a JSON candidate index is needed |
-| Temperature | 0.0 | Repeatable selection |
+| Model | Qwen2.5 0.5B Instruct Q4_K_M | Better instruction following with bounded Pi memory |
+| Context | 1,024 tokens | Holds the compact facts and one generated analysis sentence without the full 32K model context |
+| Generation limit | 120 tokens | Enough for a 20-45 word analysis with a hard upper bound |
+| Temperature / top-p | 0.2 / 0.9 | Low variation without forcing identical wording |
 | Threads | 3 | Leaves one Pi core available for the server and OS |
 | Priority | low (`--prio -1`) | AI must not compete with acquisition |
 | Polling | disabled (`--poll 0`) | Avoid busy-wait CPU use |
 | Log verbosity | 0; performance report disabled | Do not capture unused model diagnostics |
-| Warmup | disabled | One short selection per completed run |
+| Repetition penalty | 1.12 over 128 tokens | Reduce repeated clauses in generated prose |
+| Warmup | disabled | One generation per completed run |
 | Auto-fit | disabled | Model and context sizes are already bounded |
-| Vision projector | disabled/not loaded | Not needed for narrative selection |
+| Vision projector | disabled/not loaded | Not needed for text generation |
 
-The direct non-interactive benchmark reported approximately 0.60 seconds of
-timed work inside `llama.cpp`: about 0.15 seconds model load, 0.15 seconds prompt
-evaluation, and 0.29 seconds token evaluation. Full one-shot process timing on
-this QNX build is roughly four seconds because backend startup and process
-teardown are outside that internal timer. End-to-end Python timing is exposed in
-the UI and session JSON because device load can vary.
+End-to-end Python timing is exposed in the UI and session JSON because model
+load, prompt evaluation, generation length, and device load can vary. Summary
+generation intentionally takes longer than the image-quality classifier and is
+run only after acquisition and deterministic scoring are finished.
 
 ### 7.5 Latency optimization process
 
@@ -320,26 +338,26 @@ advance. The progression is useful because each step exposed a different cost:
 | Iteration | Observed behavior | Engineering change |
 |---|---|---|
 | App-local binary with only `LD_LIBRARY_PATH` | Model failed with `no backends are loaded` | Point `GGML_BACKEND_PATH` at the packaged `libggml-cpu.so` |
-| Free-form raw completion | Fast model execution, but no reliable JSON for the fact-dense prompt | Add llama.cpp JSON-schema grammar |
-| Interactive `llama-cli` authors full summary | Structure improved, but the 256M model repeated or omitted facts | Stop asking the small model to author safety-relevant text |
-| Grammar forces one complete approved summary | Fact-safe, but regenerating the paragraph took about 10.5-16 seconds | Make the output a candidate index instead of the paragraph |
-| Candidate index with full facts and full candidates in prompt | Valid output in about 4.9 seconds end to end | Remove facts that cannot affect the style decision and replace full candidates with style names |
-| Non-interactive `llama-completion`, minimal prompt, 12-token limit | About 0.60 seconds inside llama.cpp | Final production configuration |
+| Vision-language model's 135M text backbone | Generated prose but weak instruction following | Use the dedicated Qwen2.5 0.5B Instruct text model |
+| Interactive `llama-cli` | Added terminal/chat wrapper overhead | Use non-interactive `llama-completion -no-cnv` with an explicit ChatML prompt |
+| Unbounded plain-text response | Harder to extract and could run too long | Enforce a bounded JSON `analysis` schema and 120-token limit |
+| Full session object in the prompt | More prompt-evaluation work and irrelevant fields | Send a compact allowlist of explanation facts |
+| Full model context | Unnecessary KV-cache allocation | Limit context to 1,024 tokens |
+| Default scheduling | AI could consume every available core | Use three threads, low priority, and no polling |
 | Default diagnostic output | Thousands of unused model-detail characters captured by Python | Set verbosity to zero and disable the performance report while preserving generated JSON |
 
 The main lessons were:
 
 - **Backend discovery and shared-library discovery are different.** The binary
   can start successfully while inference still cannot find a compute backend.
-- **Prompt evaluation is part of latency.** Sending every metric and two long
-  paragraphs made a tiny output slow even when generation was limited.
+- **Prompt evaluation is part of latency.** Sending only explanation-relevant
+  fields reduces work and prevents unrelated session data influencing prose.
 - **Output length matters twice.** Longer text takes more token evaluation and
   gives a small model more opportunities to repeat or omit facts.
 - **The interface matters.** `llama-cli` includes an interactive chat wrapper;
-  `llama-completion -no-cnv` is a better fit for a one-shot embedded decision.
-- **Constrain the task, not only the syntax.** JSON grammar guarantees shape,
-  but a model can still put poor prose inside valid JSON. Selecting an approved
-  candidate bounds both syntax and meaning.
+  `llama-completion -no-cnv` is a better fit for one-shot embedded generation.
+- **Grammar is not factual validation.** JSON schema guarantees shape, while a
+  separate validator checks the generated meaning against source measurements.
 - **Measure internal and external time separately.** SSH command wall time
   includes connection setup and is not the device inference latency. The UI
   records timing around the local subprocess on the Pi.
@@ -357,10 +375,9 @@ The architecture uses QNX isolation rather than assuming AI is reliable:
 - IMU collection runs before any AI process starts.
 - Final camera scoring completes before `llama.cpp` starts.
 - The classifier has a 12-second subprocess deadline.
-- `llama.cpp` has a 45-second deadline and low CPU priority.
+- `llama.cpp` has a 75-second deadline and low CPU priority.
 - The LLM receives no control over hardware, scores, files, or network.
-- Every generated selection is schema-constrained and the selected text is
-  numerically validated.
+- Every generated analysis is schema-constrained and numerically validated.
 - Every session is saved locally even if backend forwarding fails.
 - AI errors are visible quality state, never silent score replacement.
 
@@ -376,8 +393,8 @@ The dashboard makes the AI boundary visible:
 - The camera panel shows `CONNECTING`, `LIVE`, `CAPTURING`, or `CAPTURED`.
 - The image gate shows accepted/repeat status, valid probability, model version,
   QNX CPU execution, and classifier latency.
-- The analysis panel shows `QNX llama.cpp`, measured latency, and
-  `fact-validated` when model selection succeeds.
+- The analysis panel shows `QNX llama.cpp`, the model name, measured latency,
+  and `fact-validated` when generated text passes validation.
 - If llama fails, the same panel says `deterministic fallback`.
 - If image validation fails, the UI still shows accuracy and stability and asks
   for a repeat rather than hiding data.
@@ -416,6 +433,10 @@ Tests:
 ```bash
 python3 tests/test_praxis.py
 python3 tests/test_image_quality.py
+python3 tests/test_outbox.py
+
+# On the QNX Pi, with llama.cpp and the Qwen model installed
+~/venv/bin/python tests/smoke_llama.py
 ```
 
 `test_image_quality.py` always checks model versions and dimensions. When raw
@@ -431,8 +452,8 @@ bounds, mirror invariants, and final-model label reproduction.
 | Hand-designed image features | Fast and explainable | May miss novel scene failures a CNN would learn |
 | Train final model on all 30 | Uses scarce data | Training-label accuracy is not generalization evidence |
 | Fixed 0.5 threshold | Simple contract | Probability is not calibrated on a large independent set |
-| Q8_0 SmolVLM | Small enough for Pi CPU, high weight precision | Still slower and less capable than a larger model |
-| LLM selects grounded candidates | Fast, grammar-safe, factual | Less expressive than free generation |
+| Q4_K_M Qwen 0.5B | Stronger instruction following within bounded Pi memory | More latency and memory than the smaller SmolVLM text backbone |
+| LLM generates grounded analysis inside invariant framing | Useful and visibly generative while mandatory facts stay exact | Higher latency and possible fallback when validation rejects prose |
 | Start llama per completed run | Strong isolation and simple cleanup | Repeated model/process startup latency |
 | Keep multimodal projector optional | Protects score latency and memory | VLM is not the primary image validator |
 | Rootless app-local APK install | Reproducible without administrator access | Must manage library/backend paths manually |
@@ -456,8 +477,8 @@ and a persistent low-latency camera view are the real-time inputs. AI is
 deliberately scheduled after acquisition at low priority.
 
 **Interesting use of AI:** a camera-specific learned quality gate catches
-unusable measurements, while an embedded LLM makes a constrained explanation
-policy decision without gaining authority over the measurement.
+unusable measurements, while an embedded LLM generates a validated explanation
+without gaining authority over the measurement.
 
 **No cloud:** all model files and inference processes are local to the QNX Pi.
 
@@ -480,4 +501,5 @@ logistic regression is universally superior.
 - QNX AI Camera reference project: <https://gitlab.com/qnx/projects/ai-camera-app>
 - QNX TensorFlow port files: <https://github.com/qnx-ports/build-files/tree/main/ports/tensorflow>
 - llama.cpp CLI documentation: <https://github.com/ggml-org/llama.cpp/blob/master/tools/cli/README.md>
+- Qwen2.5 0.5B Instruct GGUF: <https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF>
 - SmolVLM GGUF model: <https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF>

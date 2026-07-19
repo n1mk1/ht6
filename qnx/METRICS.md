@@ -10,7 +10,7 @@ quality, percentile and explanation fields.
 |---|---|---|
 | Vision (pixels) | `qnx/vision/rt_vision.cpp` `do_score` | detect blue/red, per-slice centroids |
 | Deterministic metrics | `qnx/server/server.py` `compute_metrics` | perpendicular deviation, mm, tremor |
-| **Versioned 0–100 scale + bands** | `qnx/praxis/score.py` | single source of truth (`praxis-score-1.1.0`) |
+| **Versioned 0–100 scale + bands** | `qnx/praxis/score.py` | single source of truth (`praxis-score-1.2.0`) |
 | Percentiles | `qnx/praxis/percentile.py` | rank vs a versioned reference set |
 | Explanation | `qnx/praxis/explain.py` | LLM/template summary (never alters numbers) |
 
@@ -99,12 +99,15 @@ mean_dev_mm = mean_dev_px / scale_px_per_mm          # fixed rig calibration
 ```python
 ACC_GOOD_MM = 1.86     # KatieCalibrationGood session_015856 -> 90
 ACC_BAD_MM = 13.04     # katiecalibrationbad session_021311 -> 10
+MIN_ACCURACY_COVERAGE_PCT = 60.0
 accuracy = linear_lower_is_better(mean_dev_mm, good=ACC_GOOD_MM, bad=ACC_BAD_MM)
 ```
 
-Coverage remains a quality metric, but it does not multiply the score. The good
-anchor had 72.4% detected coverage despite a visually accurate trace, so using
-coverage as a multiplier made the score misleadingly low.
+Coverage is a quality gate but does not multiply the score. Below 60%, accuracy
+is `null` with `insufficient_trace_coverage`; at or above 60%, the deviation
+curve is unchanged. The good anchor had 72.4% detected coverage despite a
+visually accurate trace, so using coverage as a multiplier made the score
+misleadingly low.
 
 | mean_dev_mm | score |
 |---|---|
@@ -113,9 +116,10 @@ coverage as a multiplier made the score misleadingly low.
 | 13.04 mm | 10 |
 | ≥14.44 mm | 0 |
 
-`accuracy` is `null` (never fabricated) if there are no scored slices or if the
-fixed rig scale is unavailable; a `vision_no_score` /
-`scale_calibration_unavailable` warning is added.
+`accuracy` is `null` (never fabricated) below 60% coverage, if there are no
+scored slices, or if the fixed rig scale is unavailable. The corresponding
+warning is `insufficient_trace_coverage`, `vision_no_score`, or
+`scale_calibration_unavailable`.
 
 ---
 
@@ -150,9 +154,12 @@ stability = linear_lower_is_better(tremor_rms_deg_s, good=STAB_GOOD_DPS, bad=STA
 | 35.91 °/s | 10 |
 | ≥39.75 °/s | 0 |
 
-(A still pen ≈ 0.12 °/s → 100.) `null` + `no_imu_samples` if the IMU stream is
-empty. Limitations: boxcar high-pass (not a true 4–12 Hz bandpass); gyro only
-(accel recorded, unused); index-based averaging assumes ~uniform rate.
+(A still pen ≈ 0.12 °/s → 100.) Tremor and stability require at least 50 valid
+samples spanning 1.0 second at 40 Hz. Insufficient evidence produces `null`
+with `no_imu_samples` or `insufficient_imu_evidence`; raw gyro RMS, peak, sample
+count, duration, and rate remain available. Limitations: boxcar high-pass (not
+a true 4–12 Hz bandpass); gyro only (accel recorded, unused); index-based
+averaging assumes ~uniform rate.
 
 ---
 
@@ -202,10 +209,13 @@ last, over a validated structured object (scores, bands, percentiles + ref-set
 description, coverage, spatial error, completion time, smoothness, tremor,
 quality warnings, task info).
 
-- Tries official QNX **llama.cpp** using app-local defaults. The model selects
-  one of two deterministic, grounded narrative candidates. A JSON grammar
-  restricts the output to a valid candidate index, and **every number in the
-  selected text is validated against the source metrics**.
+- Tries official QNX **llama.cpp** using app-local defaults. Qwen2.5 0.5B
+  Instruct generates a new central analysis sentence token by token from an
+  allowlisted fact object. It does not select, rank, or retrieve a prepared
+  response. A JSON grammar bounds the `analysis` shape and length, and **every
+  number in the generated text is validated against the source metrics**.
+  Deterministic code adds the exact score, capture-decision, and
+  prototype-limitation sentences around that generated analysis.
 - Falls back to a **deterministic template** on any failure/timeout/mismatch, or
   when llama is not configured. The template repeats scores, bands and
   percentiles exactly and lists the main contributing factors.
@@ -225,9 +235,8 @@ completion_time_seconds = (t_stop − t_go) / 1e9      # monotonic ns
 
 Quality (`compute_metrics`), never silently corrected: `n_ref_slices`,
 `n_scored_slices`, `frame`, `imu_samples_received`, `imu_samples_invalid`
-(counted, never interpolated), `imu_rate_hz`, `calibration_valid`, `warnings`
-(`vision_no_score`, `scale_calibration_unavailable`, `no_imu_samples`,
-`capture_*`).
+(counted, never interpolated), `imu_rate_hz`, `imu_duration_seconds`,
+`imu_evidence_sufficient`, `calibration_valid`, and `warnings`.
 
 ---
 
@@ -239,7 +248,9 @@ Quality (`compute_metrics`), never silently corrected: `n_ref_slices`,
 | `SCALE_PX_PER_MM` | server.py | 9.2 | fixed rig px→mm (one-time calibration) |
 | `MIN_HITS` | rt_vision.cpp | 3 | subsampled pixels to trust a slice's colour |
 | `ACC_GOOD_MM` / `ACC_BAD_MM` | **praxis/score.py** | 1.86 / 13.04 | accuracy anchors (90 / 10) |
+| `MIN_ACCURACY_COVERAGE_PCT` | **praxis/score.py** | 60% | minimum trace evidence for accuracy |
 | `TREMOR_WIN_S` | server.py | 0.3 | intended-motion vs tremor boundary (s) |
+| `MIN_IMU_SAMPLES` / `MIN_IMU_DURATION_S` / `MIN_IMU_RATE_HZ` | server.py | 50 / 1.0 / 40 | minimum evidence for tremor/stability |
 | `STAB_GOOD_DPS` / `STAB_BAD_DPS` | **praxis/score.py** | 5.18 / 35.91 | stability anchors (90 / 10) |
 | `MIN_REFERENCE_N` | praxis/percentile.py | 20 | min samples for a valid percentile |
 | red/blue/purple thresholds | rt_vision.cpp | §1 | colour segmentation |
@@ -272,14 +283,15 @@ Changing score anchors/formulas changes the scale → **bump
 {
   "schema_version": "3.0",
   "username": "alice", "session_id": "session_223031", "device_id": "qnx_pi_23",
-  "task": {"type": "path_tracing", "version": "mat_v1", "difficulty": 1},
+  "task": {"type": "path_tracing", "version": "mat_v1", "difficulty": 1,
+           "hand": "right"},
   "created_at": "…", "timing": {"started_at": "…", "duration_ms": 12840},
   "scores": {
     "accuracy": 90.0, "stability": 90.0,
     "accuracy_band": "very high", "stability_band": "very high",
-    "version": "praxis-score-1.1.0"
+    "version": "praxis-score-1.2.0"
   },
-  "score_definitions": { "version": "praxis-score-1.1.0", "accuracy": {...},
+  "score_definitions": { "version": "praxis-score-1.2.0", "accuracy": {...},
                           "stability": {...}, "bands": [...] },
   "percentiles": {
     "accuracy":  {"percentile": 65.0, "reference_set_version": "proto-1",
@@ -288,9 +300,9 @@ Changing score anchors/formulas changes the scale → **bump
     "stability": {"percentile": null, "label": "Percentile unavailable", "...": "…"}
   },
   "explanation": {"summary": "…", "source": "llama.cpp", "validated": true,
-                  "explain_version": "praxis-explain-1.1.0",
-                  "model": "SmolVLM-256M-Instruct-Q8_0.gguf",
-                  "inference_ms": 596.7},
+                  "explain_version": "praxis-explain-1.2.0",
+                  "model": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+                  "inference_ms": 12480.2},
   "metrics": { "accuracy_score": 73.4, "mean_dev_mm": 1.9, "coverage_pct": 94.3,
                "completion_time_seconds": 12.8, "gyro_rms_deg_s": 4.1,
                "tremor_rms_deg_s": 0.12, "stability_score": 98.0, "...": "…" },

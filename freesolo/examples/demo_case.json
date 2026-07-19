@@ -1,89 +1,144 @@
 {
-  "participant_id": "participant-001",
-  "task_type": "path_tracing",
+  "contract_version": "praxis-freesolo-2.0",
+  "participant_id": "training-participant-clear_improvement-016",
   "reference_session": {
-    "session_id": "session-001",
-    "timestamp": "2026-07-18T09:00:00Z",
+    "session_id": "synthetic-clear_improvement-016-reference",
+    "timestamp": "2026-07-01T09:00:00Z",
+    "task": {
+      "type": "path_tracing",
+      "version": "mat_v1",
+      "difficulty": 1,
+      "hand": "right"
+    },
+    "score_version": "praxis-score-1.1.0",
+    "scores": {
+      "accuracy": 41.2,
+      "stability": 36.8
+    },
     "metrics": {
-      "path_inside_percent": 71.4,
-      "mean_deviation_mm": 4.8,
-      "max_deviation_mm": 12.6,
-      "completion_time_seconds": 42.3,
-      "pause_count": 5,
-      "correction_count": 9,
-      "angular_instability_rms": 7.1,
-      "peak_angular_velocity_dps": 31.5
+      "coverage_pct": 98.2,
+      "mean_dev_mm": 8.8,
+      "max_dev_mm": 21.5,
+      "rms_dev_mm": 10.3,
+      "completion_time_seconds": 16.2,
+      "tremor_rms_deg_s": 25.8,
+      "peak_angular_velocity_deg_s": 266.3
     },
     "quality": {
-      "camera_tracking_percent": 97.2,
-      "imu_capture_percent": 99.1,
       "calibration_valid": true,
-      "dropped_frame_count": 3,
-      "dropped_sample_count": 2,
+      "n_ref_slices": 92,
+      "n_scored_slices": 85,
+      "imu_samples_received": 3158,
+      "imu_samples_invalid": 0,
+      "imu_rate_hz": 168.0,
       "warnings": []
     }
   },
   "current_session": {
-    "session_id": "session-002",
-    "timestamp": "2026-07-19T09:00:00Z",
+    "session_id": "synthetic-clear_improvement-016-current",
+    "timestamp": "2026-07-15T09:00:00Z",
+    "task": {
+      "type": "path_tracing",
+      "version": "mat_v1",
+      "difficulty": 1,
+      "hand": "right"
+    },
+    "score_version": "praxis-score-1.1.0",
+    "scores": {
+      "accuracy": 64.1,
+      "stability": 67.0
+    },
     "metrics": {
-      "path_inside_percent": 83.6,
-      "mean_deviation_mm": 3.1,
-      "max_deviation_mm": 9.2,
-      "completion_time_seconds": 48.7,
-      "pause_count": 3,
-      "correction_count": 6,
-      "angular_instability_rms": 6.4,
-      "peak_angular_velocity_dps": 28.1
+      "coverage_pct": 98.5,
+      "mean_dev_mm": 5.3,
+      "max_dev_mm": 12.2,
+      "rms_dev_mm": 6.1,
+      "completion_time_seconds": 17.1,
+      "tremor_rms_deg_s": 13.9,
+      "peak_angular_velocity_deg_s": 210.2
     },
     "quality": {
-      "camera_tracking_percent": 98.4,
-      "imu_capture_percent": 99.5,
       "calibration_valid": true,
-      "dropped_frame_count": 2,
-      "dropped_sample_count": 1,
+      "n_ref_slices": 91,
+      "n_scored_slices": 91,
+      "imu_samples_received": 2433,
+      "imu_samples_invalid": 3,
+      "imu_rate_hz": 158.2,
       "warnings": []
     }
   },
   "changes": {
-    "path_inside_percent": {
-      "absolute_change": 12.2,
-      "direction": "improved"
+    "accuracy_score": {
+      "reference": 41.2,
+      "current": 64.1,
+      "absolute_change": 22.9,
+      "direction": "improved",
+      "contextual": false
     },
-    "mean_deviation_mm": {
-      "absolute_change": -1.7,
-      "direction": "improved"
+    "stability_score": {
+      "reference": 36.8,
+      "current": 67.0,
+      "absolute_change": 30.2,
+      "direction": "improved",
+      "contextual": false
     },
-    "max_deviation_mm": {
-      "absolute_change": -3.4,
-      "direction": "improved"
+    "coverage_pct": {
+      "reference": 98.2,
+      "current": 98.5,
+      "absolute_change": 0.3,
+      "direction": "stable",
+      "contextual": false
+    },
+    "mean_dev_mm": {
+      "reference": 8.8,
+      "current": 5.3,
+      "absolute_change": -3.5,
+      "direction": "improved",
+      "contextual": false
+    },
+    "max_dev_mm": {
+      "reference": 21.5,
+      "current": 12.2,
+      "absolute_change": -9.3,
+      "direction": "improved",
+      "contextual": false
+    },
+    "rms_dev_mm": {
+      "reference": 10.3,
+      "current": 6.1,
+      "absolute_change": -4.2,
+      "direction": "improved",
+      "contextual": false
     },
     "completion_time_seconds": {
-      "absolute_change": 6.4,
-      "direction": "declined"
+      "reference": 16.2,
+      "current": 17.1,
+      "absolute_change": 0.9,
+      "direction": "stable",
+      "contextual": true
     },
-    "pause_count": {
-      "absolute_change": -2,
-      "direction": "improved"
+    "tremor_rms_deg_s": {
+      "reference": 25.8,
+      "current": 13.9,
+      "absolute_change": -11.9,
+      "direction": "improved",
+      "contextual": false
     },
-    "correction_count": {
-      "absolute_change": -3,
-      "direction": "improved"
-    },
-    "angular_instability_rms": {
-      "absolute_change": -0.7,
-      "direction": "improved"
-    },
-    "peak_angular_velocity_dps": {
-      "absolute_change": -3.4,
-      "direction": "improved"
+    "peak_angular_velocity_deg_s": {
+      "reference": 266.3,
+      "current": 210.2,
+      "absolute_change": -56.1,
+      "direction": "improved",
+      "contextual": true
     }
   },
   "comparison_reliability": "reliable",
+  "reliability_reasons": [],
   "permitted_next_steps": [
+    "Continue monitoring performance at future sessions.",
+    "Collect another compatible session before drawing a broader conclusion.",
     "Repeat the same standardized task at the next planned session.",
-    "Review the accuracy-versus-speed tradeoff with the participant.",
-    "Confirm that the same task setup and calibration are used next time.",
-    "Collect another session before drawing a broader conclusion."
+    "Review the accuracy-versus-stability tradeoff with the participant.",
+    "Repeat the session after resolving the recorded data-quality issue."
   ]
 }

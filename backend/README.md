@@ -20,8 +20,11 @@ startup. Set `PRAXIS_MONGODB_URI` to your Atlas connection string and
 on QNX.
 
 FreeSOLO HTTP inference requires `PRAXIS_FREESOLO_MODEL` and
-`PRAXIS_FREESOLO_API_KEY`. Until the current QNX payload supplies every metric
-in the frozen FreeSOLO input contract, analysis is stored as `unavailable`.
+`PRAXIS_FREESOLO_API_KEY`. Contract `praxis-freesolo-2.0` maps only fields in
+QNX schema `3.0`; missing required fields produce an explicit unavailable
+status. Task, score-version, or capture-quality conflicts produce an
+`unreliable` comparison. Model JSON is checked for pattern semantics,
+grounding, safety, and reliability handling before it is stored.
 `PRAXIS_FREESOLO_MODE=mock` is an explicit development-only simulation and is
 rejected when `PRAXIS_ENVIRONMENT=production`.
 
@@ -73,5 +76,5 @@ keeps its local run on all HTTP failures.
 ```
 
 Tests cover schema `3.0`, payload preservation, idempotency, persistence,
-compatible-run policy, username resolution, and the real and mock adapter
-contracts.
+compatible-run policy, username resolution, actual QNX-to-model mapping,
+reliability overrides, semantic response rejection, and the development mock.

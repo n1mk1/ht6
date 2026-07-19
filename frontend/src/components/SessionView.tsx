@@ -39,7 +39,7 @@ function ComparisonSummary({ session }: { session: Session }) {
       <div>
         <span className="section-kicker">Deterministic comparison</span>
         <h3>{titleCase(comparison.overall)} versus previous compatible run</h3>
-        <p>Direct arithmetic under {comparison.policy_version}. This is separate from the model prediction.</p>
+        <p>Direct arithmetic under {comparison.policy_version}. This is separate from model-generated analysis.</p>
       </div>
       <div className="delta-list">
         {items.map(([name, change]) => (

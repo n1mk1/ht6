@@ -14,7 +14,8 @@ Single-image model (no corner markers, no homography):
   GET  /                     dashboard
   GET  /api/state            phase + captured blue/red polylines (pixels)
   GET  /api/imu_live         latest gyro magnitude + sample count (during run)
-  POST /api/session/new      {"username": "..."}
+  GET  /api/outbox/status   durable upload queue counts
+  POST /api/session/new      {"username": "...", "hand": "left|right"}
   POST /api/preview          ensure persistent live-preview camera process
   POST /api/go               calibrate IMU bias, then start IMU recording + timer
   POST /api/stop             stop IMU recording + timer
@@ -29,12 +30,13 @@ import csv
 import json
 import math
 import os
+import re
 import signal
-import shutil
 import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -43,6 +45,10 @@ BASE = os.path.expanduser("~/steadyeye")
 DASH = os.path.join(BASE, "dashboard")
 SESSIONS = os.path.join(BASE, "sessions")
 OUTBOX = os.path.join(BASE, "outbox")
+OUTBOX_PENDING = os.path.join(OUTBOX, "pending")
+OUTBOX_SENT = os.path.join(OUTBOX, "sent")
+OUTBOX_FAILED = os.path.join(OUTBOX, "failed")
+OUTBOX_STATE = os.path.join(OUTBOX, "state")
 IMAGE_QUALITY_DATA = os.path.join(BASE, "datasets", "image_quality", "data")
 IMAGE_QUALITY_CAPTURES = os.path.join(IMAGE_QUALITY_DATA, "captures")
 RT_VISION = os.path.join(BASE, "vision", "rt_vision")
@@ -65,11 +71,13 @@ TASK = {"type": "path_tracing", "version": "mat_v1", "difficulty": 1}
 # Webapp backend (on a separate computer) that stores and compares runs.
 # Set BACKEND_URL to its base URL, e.g. http://192.168.1.50:8000 — the server
 # POSTs each finished run to BACKEND_URL + BACKEND_RUNS_PATH. If unset or
-# unreachable, the run is still saved locally to outbox/latest.json.
+# unreachable, the run is still saved locally in the durable outbox.
 BACKEND_URL = os.environ.get("BACKEND_URL", "").rstrip("/")
-BACKEND_RUNS_PATH = os.environ.get("BACKEND_RUNS_PATH", "/api/runs")
+BACKEND_RUNS_PATH = os.environ.get("BACKEND_RUNS_PATH", "/api/v1/qnx/sessions")
 BACKEND_KEY = os.environ.get("BACKEND_KEY", "")   # optional X-Device-Key
 DEVICE_ID = os.environ.get("DEVICE_ID", "qnx_pi_23")
+if not re.match(r"^/api/v\d+/", BACKEND_RUNS_PATH):
+    raise RuntimeError("BACKEND_RUNS_PATH must use a versioned /api/vN/ endpoint")
 
 SLICE_PX = 16          # vertical-slice width for accuracy scoring
 # Fixed rig: camera height and mat distance never change, so px->mm is a
@@ -83,17 +91,25 @@ SCALE_PX_PER_MM = float(os.environ.get("SCALE_PX_PER_MM", "9.2"))
 # average (the intended slow trajectory); the residual RMS is the tremor. The
 # 0-100 scaling, bands and version live in praxis.score (single source of truth).
 TREMOR_WIN_S = 0.3     # moving-average window (s) that defines "intended motion"
+MIN_IMU_SAMPLES = 50
+MIN_IMU_DURATION_S = 1.0
+MIN_IMU_RATE_HZ = 40.0
 
 S = {
     "phase": "idle",   # idle -> recording -> stopped -> complete
-    "session_id": None, "username": "",
+    "session_id": None, "username": "", "hand": None,
     "imu_cal": None, "score": None,
-    "t_go": None, "t_stop": None, "result": None, "error": None,
+    "t_go": None, "t_stop": None, "started_at": None,
+    "result": None, "error": None,
 }
 LOCK = threading.Lock()
 CAM_LOCK = threading.Lock()   # only one rt_vision may hold the camera at a time
 PROCS = {}
 CAMERA = {"path": None}
+OUTBOX_WAKE = threading.Event()
+OUTBOX_STOP = threading.Event()
+OUTBOX_LOCK = threading.Lock()
+OUTBOX_HEALTH = {"worker_error": None, "worker_error_at": None}
 
 # A deliberately small, balanced dataset for a binary image-quality model.
 # Accurate and inaccurate traces are both valid: this model decides whether a
@@ -276,6 +292,15 @@ def perp_deviations(red, ref, x_tol=None):
     return devs
 
 
+def imu_evidence(imu):
+    duration = ((imu[-1]["t"] - imu[0]["t"]) / 1e9
+                if len(imu) > 1 else 0.0)
+    rate = len(imu) / duration if duration > 0 else 0.0
+    sufficient = (len(imu) >= MIN_IMU_SAMPLES and
+                  duration >= MIN_IMU_DURATION_S and rate >= MIN_IMU_RATE_HZ)
+    return {"duration_s": duration, "rate_hz": rate, "sufficient": sufficient}
+
+
 def imu_stability(imu):
     """IMU stability METRICS (not the 0-100 score). tremor_rms is the residual
     jitter after the slow intended trajectory is removed (high-pass |gyro|), so
@@ -288,9 +313,14 @@ def imu_stability(imu):
     gyro_rms = math.sqrt(sum(w * w for w in omega) / len(omega))
     peak = max(omega)
 
+    evidence = imu_evidence(imu)
+    if not evidence["sufficient"]:
+        return {"gyro_rms_deg_s": round(gyro_rms, 2),
+                "peak_angular_velocity_deg_s": round(peak, 2),
+                "tremor_rms_deg_s": None}
+
     # sample rate -> moving-average half-window that captures intended motion
-    dur = (imu[-1]["t"] - imu[0]["t"]) / 1e9 if len(imu) > 1 else 0
-    fs = len(imu) / dur if dur > 0 else 100.0
+    fs = evidence["rate_hz"]
     half = max(1, int(fs * TREMOR_WIN_S / 2))
     resid2 = 0.0
     for i in range(len(omega)):
@@ -376,39 +406,215 @@ def compute_metrics(d, t_go_ns, t_stop_ns):
     m.update(imu_stability(imu))
     # canonical versioned stability score (from high-frequency tremor)
     m["stability_score"] = praxis_score.stability_score(m.get("tremor_rms_deg_s"))
+
+    evidence = imu_evidence(imu)
+    if (m.get("coverage_pct") is not None and
+            m["coverage_pct"] < praxis_score.MIN_ACCURACY_COVERAGE_PCT):
+        warnings.append("insufficient_trace_coverage")
     if not imu:
         warnings.append("no_imu_samples")
-
-    dur = (imu[-1]["t"] - imu[0]["t"]) / 1e9 if len(imu) > 1 else 0
+    elif not evidence["sufficient"]:
+        warnings.append("insufficient_imu_evidence")
     quality = {
         "n_ref_slices": (v or {}).get("n_ref_slices"),
         "n_scored_slices": (v or {}).get("n_scored_slices"),
         "frame": (v or {}).get("frame"),
         "imu_samples_received": len(imu),
         "imu_samples_invalid": imu_invalid,
-        "imu_rate_hz": round(len(imu) / dur, 1) if dur > 0 else None,
+        "imu_rate_hz": round(evidence["rate_hz"], 1) if evidence["duration_s"] > 0 else None,
+        "imu_duration_seconds": round(evidence["duration_s"], 2),
+        "imu_evidence_sufficient": evidence["sufficient"],
         "calibration_valid": bool(S["imu_cal"] and S["imu_cal"].get("ok")),
         "warnings": warnings,
     }
     return m, quality
 
 
-def forward_to_backend(run):
-    """POST the finished run to the webapp ingestion API. Best-effort:
-    returns a small status dict, never raises — the run is always kept locally."""
-    if not BACKEND_URL:
-        return {"forwarded": False, "reason": "no_backend_url"}
+def _atomic_json(path, value):
+    temp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+    with open(temp, "w") as target:
+        json.dump(value, target, indent=2)
+        target.flush()
+        os.fsync(target.fileno())
+    os.replace(temp, path)
+
+
+def _queue_key(run):
+    identity = f'{run.get("device_id", "device")}__{run.get("session_id", "session")}'
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", identity)
+
+
+def _outbox_state(key):
+    return load_json(os.path.join(OUTBOX_STATE, key + ".json")) or {
+        "attempts": 0, "status": "pending", "next_attempt_at": 0,
+        "last_http_status": None, "last_error": None,
+    }
+
+
+def _backoff_seconds(attempts):
+    return min(300, 5 * (2 ** min(max(attempts - 1, 0), 6)))
+
+
+def _upload_policy(http_status=None, network_error=False):
+    if network_error or http_status is None or http_status >= 500 or http_status == 429:
+        return "retry"
+    if http_status in (200, 201):
+        return "success"
+    return "terminal"
+
+
+def enqueue_session(run):
+    """Persist one immutable schema payload and wake the asynchronous uploader."""
+    key = _queue_key(run)
+    destinations = ((OUTBOX_PENDING, "pending"), (OUTBOX_SENT, "sent"),
+                    (OUTBOX_FAILED, "terminal"))
+    with OUTBOX_LOCK:
+        found = next(((os.path.join(folder, key + ".json"), status)
+                      for folder, status in destinations
+                      if os.path.exists(os.path.join(folder, key + ".json"))), None)
+        if found is None:
+            _atomic_json(os.path.join(OUTBOX_STATE, key + ".json"), _outbox_state(key))
+            payload_path = os.path.join(OUTBOX_PENDING, key + ".json")
+            _atomic_json(payload_path, run)
+            status = "pending"
+            stored = run
+        else:
+            payload_path, status = found
+            stored = load_json(payload_path) or run
+        # Compatibility pointer only. The per-session file above is authoritative.
+        _atomic_json(os.path.join(OUTBOX, "latest.json"), stored)
+    OUTBOX_WAKE.set()
+    return {"forwarded": status == "sent", "queued": status == "pending",
+            "reason": ("sent" if status == "sent" else
+                       "terminal" if status == "terminal" else
+                       "queued" if BACKEND_URL else "no_backend_url"),
+            "queue_id": key}
+
+
+def _upload_payload(payload):
     url = BACKEND_URL + BACKEND_RUNS_PATH
-    data = json.dumps(run).encode()
+    data = json.dumps(payload, separators=(",", ":")).encode()
     headers = {"Content-Type": "application/json"}
     if BACKEND_KEY:
         headers["X-Device-Key"] = BACKEND_KEY
     try:
-        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            return {"forwarded": True, "status": resp.status, "url": url}
-    except Exception as e:  # network down, backend off, etc. — keep local copy
-        return {"forwarded": False, "reason": str(e), "url": url}
+        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(request, timeout=8) as response:
+            return response.status, None
+    except urllib.error.HTTPError as error:
+        return error.code, f"http_{error.code}"
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        return None, str(error)
+
+
+def process_outbox_once(now=None):
+    """Attempt each due payload once. Payload files are never edited in place."""
+    if not BACKEND_URL:
+        return
+    now = time.time() if now is None else now
+    with OUTBOX_LOCK:
+        filenames = sorted(os.listdir(OUTBOX_PENDING))
+    for filename in filenames:
+        if not filename.endswith(".json"):
+            continue
+        key = filename[:-5]
+        payload_path = os.path.join(OUTBOX_PENDING, filename)
+        state_path = os.path.join(OUTBOX_STATE, filename)
+        state = _outbox_state(key)
+        if state.get("next_attempt_at", 0) > now:
+            continue
+        with OUTBOX_LOCK:
+            payload = load_json(payload_path)
+        if not payload:
+            state.update(status="terminal", last_error="invalid_local_payload")
+            with OUTBOX_LOCK:
+                _atomic_json(state_path, state)
+                if os.path.exists(payload_path):
+                    os.replace(payload_path, os.path.join(OUTBOX_FAILED, filename))
+            continue
+        status, error = _upload_payload(payload)
+        attempts = int(state.get("attempts", 0)) + 1
+        policy = _upload_policy(status, network_error=status is None)
+        state.update(attempts=attempts, last_http_status=status, last_error=error)
+        if policy == "success":
+            state.update(status="sent", next_attempt_at=None,
+                         sent_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+            with OUTBOX_LOCK:
+                _atomic_json(state_path, state)
+                if os.path.exists(payload_path):
+                    os.replace(payload_path, os.path.join(OUTBOX_SENT, filename))
+        elif policy == "terminal":
+            state.update(status="terminal", next_attempt_at=None)
+            with OUTBOX_LOCK:
+                _atomic_json(state_path, state)
+                if os.path.exists(payload_path):
+                    os.replace(payload_path, os.path.join(OUTBOX_FAILED, filename))
+        else:
+            state.update(status="pending",
+                         next_attempt_at=now + _backoff_seconds(attempts))
+            with OUTBOX_LOCK:
+                _atomic_json(state_path, state)
+
+
+def requeue_auth_failures():
+    """Retry each 401-terminal payload once after a server/config restart."""
+    requeued = 0
+    with OUTBOX_LOCK:
+        try:
+            filenames = sorted(os.listdir(OUTBOX_FAILED))
+        except OSError:
+            return 0
+        for filename in filenames:
+            if not filename.endswith(".json"):
+                continue
+            key = filename[:-5]
+            state_path = os.path.join(OUTBOX_STATE, filename)
+            state = _outbox_state(key)
+            if state.get("last_http_status") != 401:
+                continue
+            failed_path = os.path.join(OUTBOX_FAILED, filename)
+            pending_path = os.path.join(OUTBOX_PENDING, filename)
+            if not os.path.exists(failed_path) or os.path.exists(pending_path):
+                continue
+            state.update(status="pending", next_attempt_at=0,
+                         last_error="requeued_after_auth_configuration_restart")
+            _atomic_json(state_path, state)
+            os.replace(failed_path, pending_path)
+            requeued += 1
+    if requeued:
+        OUTBOX_WAKE.set()
+    return requeued
+
+
+def outbox_worker():
+    while not OUTBOX_STOP.is_set():
+        try:
+            process_outbox_once()
+            with OUTBOX_LOCK:
+                OUTBOX_HEALTH.update(worker_error=None, worker_error_at=None)
+        except Exception as error:
+            with OUTBOX_LOCK:
+                OUTBOX_HEALTH.update(
+                    worker_error=str(error)[:300],
+                    worker_error_at=datetime.now(timezone.utc).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"))
+        OUTBOX_WAKE.wait(timeout=5)
+        OUTBOX_WAKE.clear()
+
+
+def outbox_status():
+    def count(folder):
+        try:
+            return sum(name.endswith(".json") for name in os.listdir(folder))
+        except OSError:
+            return 0
+    with OUTBOX_LOCK:
+        return {"ok": True, "pending": count(OUTBOX_PENDING),
+                "sent": count(OUTBOX_SENT), "terminal": count(OUTBOX_FAILED),
+                "backend_configured": bool(BACKEND_URL),
+                "endpoint": BACKEND_RUNS_PATH,
+                "worker_error": OUTBOX_HEALTH["worker_error"],
+                "worker_error_at": OUTBOX_HEALTH["worker_error_at"]}
 
 
 # ---------------------------------------------------------------- endpoints
@@ -454,14 +660,21 @@ def start_camera_preview_locked(path):
 def api_new(body):
     with CAM_LOCK:
         stop_camera_preview_locked()
-    sid = "session_" + datetime.now().strftime("%H%M%S")
+    sid = "session_" + datetime.now().strftime("%Y%m%dT%H%M%S%f")
     username = (body.get("username") or S.get("username") or "").strip()
+    hand = body.get("hand")
+    if hand is not None:
+        hand = str(hand).strip().lower()
+        if hand not in ("left", "right"):
+            return {"ok": False, "error": "hand_must_be_left_or_right"}
+    else:
+        hand = S.get("hand")
     with LOCK:
         S.update(phase="idle", session_id=sid, imu_cal=None, score=None,
-                 t_go=None, t_stop=None, result=None, error=None,
-                 username=username)
+                 t_go=None, t_stop=None, started_at=None, result=None, error=None,
+                 username=username, hand=hand)
     os.makedirs(os.path.join(SESSIONS, sid), exist_ok=True)
-    return {"ok": True, "session_id": sid, "username": username}
+    return {"ok": True, "session_id": sid, "username": username, "hand": hand}
 
 
 def api_preview(_):
@@ -523,6 +736,10 @@ def api_go(body):
     """Start a run: calibrate IMU bias (hold still), then record IMU + timer."""
     if not S["session_id"]:
         api_new({})
+    if not S.get("username"):
+        return {"ok": False, "error": "username_required"}
+    if S.get("hand") not in ("left", "right"):
+        return {"ok": False, "error": "hand_required"}
     d = sdir()
     # short stationary bias calibration so the stability score is meaningful
     code, cal = run([IMU_PY, IMU_REC, "calibrate",
@@ -542,6 +759,7 @@ def api_go(body):
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     with LOCK:
         S["t_go"] = time.monotonic_ns()
+        S["started_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         S["phase"] = "recording"
     return {"ok": True, "imu_bias": cal.get("bias"), "noise_dps": cal.get("noise_dps")}
 
@@ -601,11 +819,12 @@ def api_score(_):
     stab = metrics.get("stability_score")
     bands = {"accuracy": praxis_score.band(acc),
              "stability": praxis_score.band(stab)}
-    percentiles = praxis_pct.compute_percentiles(acc, stab, TASK)
+    task = dict(TASK, hand=S.get("hand"))
+    percentiles = praxis_pct.compute_percentiles(acc, stab, task)
 
     # --- explainability LAST, over a validated structured object ---
     explainer_input = praxis_explain.build_input(
-        TASK, {"accuracy": acc, "stability": stab}, bands, percentiles,
+        task, {"accuracy": acc, "stability": stab}, bands, percentiles,
         metrics, quality.get("warnings"), image_quality)
     explanation = praxis_explain.explain(explainer_input)
 
@@ -616,10 +835,10 @@ def api_score(_):
         "username": S["username"] or "anonymous",
         "session_id": S["session_id"],
         "device_id": DEVICE_ID,
-        "task": TASK,
+        "task": task,
         "created_at": now_iso,
         "timing": {
-            "started_at": now_iso,
+            "started_at": S.get("started_at"),
             "duration_ms": int((t_stop - S["t_go"]) / 1e6) if S["t_go"] else None,
         },
         "scores": {"accuracy": acc, "stability": stab,
@@ -642,9 +861,8 @@ def api_score(_):
     }
     with open(os.path.join(d, "session.json"), "w") as f:
         json.dump(session, f, indent=2)
-    os.makedirs(OUTBOX, exist_ok=True)
-    shutil.copy(os.path.join(d, "session.json"), os.path.join(OUTBOX, "latest.json"))
-    session["_forward"] = forward_to_backend(session)
+    queue_status = enqueue_session(session)
+    session["_forward"] = queue_status
     with LOCK:
         S["result"] = session
         S["phase"] = "complete"
@@ -719,8 +937,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(dataset_status())
         if path == "/api/state":
             with LOCK:
-                st = {k: S[k] for k in ("phase", "session_id", "username",
-                                        "t_go", "t_stop", "result", "error")}
+                st = {k: S[k] for k in ("phase", "session_id", "username", "hand",
+                                        "t_go", "t_stop", "started_at",
+                                        "result", "error")}
             v = load_json(os.path.join(sdir(), "score.json")) if sdir() else None
             if v:
                 st["reference"] = v.get("reference", [])
@@ -729,6 +948,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(st)
         if path == "/api/imu_live":
             return self._json(tail_imu_live(sdir() or ""))
+        if path == "/api/outbox/status":
+            return self._json(outbox_status())
         if path.startswith("/sessions/"):
             fp = os.path.join(BASE, path.lstrip("/"))
             ctype = "image/bmp" if fp.endswith(".bmp") else "application/json"
@@ -765,6 +986,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def shutdown(_signum=None, _frame=None):
+    OUTBOX_STOP.set()
+    OUTBOX_WAKE.set()
     with CAM_LOCK:
         stop_camera_preview_locked()
     raise SystemExit(0)
@@ -772,16 +995,22 @@ def shutdown(_signum=None, _frame=None):
 
 if __name__ == "__main__":
     os.makedirs(SESSIONS, exist_ok=True)
-    os.makedirs(OUTBOX, exist_ok=True)
+    for folder in (OUTBOX, OUTBOX_PENDING, OUTBOX_SENT, OUTBOX_FAILED, OUTBOX_STATE):
+        os.makedirs(folder, exist_ok=True)
     os.makedirs(IMAGE_QUALITY_CAPTURES, exist_ok=True)
     write_dataset_metadata()
     with open(os.path.join(BASE, "server.pid"), "w") as f:
         f.write(str(os.getpid()))
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
-    print(f"Praxis server on :{PORT} (base {BASE})", flush=True)
+    requeued_auth = requeue_auth_failures()
+    threading.Thread(target=outbox_worker, name="outbox-uploader", daemon=True).start()
+    print(f"Praxis server on :{PORT} (base {BASE}, auth requeued {requeued_auth})",
+          flush=True)
     try:
         ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     finally:
+        OUTBOX_STOP.set()
+        OUTBOX_WAKE.set()
         with CAM_LOCK:
             stop_camera_preview_locked()
