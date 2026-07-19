@@ -75,6 +75,11 @@ async def draft_note(item: ReviewItem, run: dict) -> tuple[str, bool]:
                     system_instruction=SYSTEM_INSTRUCTION,
                     max_output_tokens=settings.max_output_tokens,
                     temperature=0.2,
+                    # gemini-2.5-flash is a thinking model; without this it can
+                    # spend the whole token budget on hidden reasoning and return
+                    # empty text (finish_reason=MAX_TOKENS), forcing a mock
+                    # fallback. These notes are short and structured — no thinking.
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             ),
             timeout=settings.gemini_timeout_s,

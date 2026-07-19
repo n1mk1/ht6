@@ -38,6 +38,10 @@ async def ask_gemini(question: str, context_block: str) -> str:
                     system_instruction=SYSTEM_INSTRUCTION,
                     max_output_tokens=settings.max_output_tokens,
                     temperature=0.3,
+                    # gemini-2.5-flash thinking can consume the whole token
+                    # budget and truncate/empty the answer; disable it for these
+                    # short, on-screen-grounded replies.
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             ),
             timeout=settings.gemini_timeout_s,
