@@ -4,8 +4,16 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from pymongo import ReturnDocument
+
+
+def _default_client(uri: str) -> AsyncIOMotorClient:
+    # Pin the CA bundle to certifi so TLS to Atlas works even on Python builds
+    # whose OpenSSL can't see the system root store (common on macOS).
+    # tlsCAFile is ignored for non-TLS URIs, so this is safe for localhost too.
+    return AsyncIOMotorClient(uri, tlsCAFile=certifi.where())
 
 
 class Database:
@@ -17,7 +25,7 @@ class Database:
         self,
         uri: str,
         name: str,
-        client_factory: Callable[[str], Any] = AsyncIOMotorClient,
+        client_factory: Callable[[str], Any] = _default_client,
         supports_transactions: bool = True,
     ):
         self.uri = uri
