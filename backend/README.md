@@ -28,6 +28,11 @@ grounding, safety, and reliability handling before it is stored.
 `PRAXIS_FREESOLO_MODE=mock` is an explicit development-only simulation and is
 rejected when `PRAXIS_ENVIRONMENT=production`.
 
+The configured model in `.env.example`, `flash-1784440274-9798478f`, is the
+layered Praxis adapter: GRPO continued training directly from the completed
+SFT adapter. See `../freesolo/LAYERED_MODEL.md` for lineage, evaluation, and
+known limitations.
+
 The participant username is the current identity link between the dashboard and
 QNX payloads. `POST /api/v1/users/resolve` performs a case-insensitive lookup or
 creates an empty participant record so a user can sign in before their first

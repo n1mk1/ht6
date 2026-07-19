@@ -101,6 +101,11 @@ Do not promote GRPO merely because training reward rose. It must preserve
 grounding and safety and improve held-out semantic pass rates outside the noise
 expected from 72 examples. Record evidence in `TRAINING_RUNS.md`.
 
+Praxis currently selects the layered GRPO run `flash-1784440274-9798478f` so
+the deployed integration demonstrates the complete SFT-to-GRPO lineage. Its
+70/72 held-out result and capture-warning limitation remain documented and are
+still enforced by backend semantic validation. See `LAYERED_MODEL.md`.
+
 These commands follow the official [FreeSOLO training](https://freesolo.co/docs/guides/training)
 and [deployment](https://freesolo.co/docs/guides/deploy-and-chat)
 guides. `structured_outputs` is intentionally present only in the GRPO config,
@@ -120,3 +125,4 @@ as required by the platform.
 | `configs/rl.toml` | SFT-warm-started GRPO configuration |
 | `scripts/regression.py` | Deployed-adapter held-out evaluator |
 | `TRAINING_RUNS.md` | Run IDs, metrics, and promotion decision |
+| `LAYERED_MODEL.md` | Active SFT-to-GRPO lineage and integration record |

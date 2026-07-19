@@ -1,0 +1,1822 @@
+{
+  "model": "flash-1784440274-9798478f",
+  "total": 72,
+  "passed": 70,
+  "pass_rate": 0.9722,
+  "checks": {
+    "exact_top_level_keys": {
+      "total": 71,
+      "passed": 71
+    },
+    "exactly_two_observations": {
+      "total": 71,
+      "passed": 71
+    },
+    "http_request": {
+      "total": 1,
+      "passed": 0
+    },
+    "limitations_shaped": {
+      "total": 71,
+      "passed": 71
+    },
+    "metric_keys_valid": {
+      "total": 71,
+      "passed": 71
+    },
+    "next_step_correct": {
+      "total": 71,
+      "passed": 71
+    },
+    "next_step_permitted": {
+      "total": 71,
+      "passed": 71
+    },
+    "numbers_grounded": {
+      "total": 71,
+      "passed": 71
+    },
+    "observation_directions_correct": {
+      "total": 71,
+      "passed": 70
+    },
+    "observations_shaped": {
+      "total": 71,
+      "passed": 71
+    },
+    "overall_pattern_correct": {
+      "total": 71,
+      "passed": 70
+    },
+    "overall_pattern_valid": {
+      "total": 71,
+      "passed": 71
+    },
+    "primary_dimensions_covered": {
+      "total": 71,
+      "passed": 71
+    },
+    "reliable_input_has_no_reliability_reasons": {
+      "total": 39,
+      "passed": 39
+    },
+    "safe_non_diagnostic_language": {
+      "total": 71,
+      "passed": 71
+    },
+    "therapist_review_required": {
+      "total": 71,
+      "passed": 71
+    },
+    "unreliable_pattern_override": {
+      "total": 32,
+      "passed": 31
+    },
+    "unreliable_reason_explained": {
+      "total": 32,
+      "passed": 32
+    }
+  },
+  "categories": {
+    "accuracy_declines_stability_improves": {
+      "total": 4,
+      "passed": 4
+    },
+    "accuracy_improves_stability_declines": {
+      "total": 4,
+      "passed": 4
+    },
+    "accuracy_improves_stability_stable": {
+      "total": 4,
+      "passed": 4
+    },
+    "accuracy_stable_stability_declines": {
+      "total": 4,
+      "passed": 4
+    },
+    "accurate_with_low_coverage": {
+      "total": 4,
+      "passed": 4
+    },
+    "clear_decline": {
+      "total": 4,
+      "passed": 3
+    },
+    "clear_improvement": {
+      "total": 4,
+      "passed": 4
+    },
+    "faster_but_scores_decline": {
+      "total": 4,
+      "passed": 4
+    },
+    "mostly_stable": {
+      "total": 4,
+      "passed": 4
+    },
+    "slower_but_scores_improve": {
+      "total": 4,
+      "passed": 4
+    },
+    "unreliable_capture_warning": {
+      "total": 6,
+      "passed": 5
+    },
+    "unreliable_invalid_calibration": {
+      "total": 4,
+      "passed": 4
+    },
+    "unreliable_missing_imu": {
+      "total": 4,
+      "passed": 4
+    },
+    "unreliable_missing_vision": {
+      "total": 6,
+      "passed": 6
+    },
+    "unreliable_score_version_mismatch": {
+      "total": 6,
+      "passed": 6
+    },
+    "unreliable_task_mismatch": {
+      "total": 6,
+      "passed": 6
+    }
+  },
+  "cases": [
+    {
+      "category": "clear_improvement",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 41.2 to 64.1; mean deviation was 8.8 mm and then 5.3 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 36.8 to 67.0; measured tremor was 25.8 deg/s and then 13.9 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_improvement",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 36.5 to 66.1; mean deviation was 9.4 mm and then 5.1 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 38.6 to 69.8; measured tremor was 24.8 deg/s and then 13.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_improvement",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 38.4 to 67.3; mean deviation was 8.9 mm and then 4.9 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 38.6 to 65.8; measured tremor was 24.6 deg/s and then 14.4 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_improvement",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 38.4 to 65.3; mean deviation was 9.1 mm and then 5.3 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 40.5 to 66.5; measured tremor was 24.3 deg/s and then 14.6 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 70.1 to 35.6; mean deviation was 4.7 mm and then 9.3 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 69.7 to 36.9; measured tremor was 13.1 deg/s and then 25.8 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 68.4 to 34.9; mean deviation was 5.1 mm and then 9.6 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 70.2 to 34.9; measured tremor was 12.3 deg/s and then 26.2 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 70.4 to 35.8; mean deviation was 4.6 mm and then 9.6 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 69.4 to 37.3; measured tremor was 13.3 deg/s and then 25.2 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "clear_decline",
+      "passed": false,
+      "checks": {
+        "http_request": false
+      },
+      "response": null,
+      "query_error": "HTTP 500: modal-http: internal error: status InternalFailure: Server has lost track of input\n"
+    },
+    {
+      "category": "accuracy_improves_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was better, moving from 38.4 to 73.0; mean deviation was 8.9 mm and then 4.3 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was worse, moving from 70.1 to 34.5; measured tremor was 13.1 deg/s and then 26.4 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was better, moving from 35.4 to 73.1; mean deviation was 9.3 mm and then 4.3 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was worse, moving from 70.1 to 38.3; measured tremor was 13.0 deg/s and then 25.2 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was better, moving from 34.4 to 73.4; mean deviation was 9.5 mm and then 4.3 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was worse, moving from 68.0 to 36.3; measured tremor was 14.2 deg/s and then 25.8 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was better, moving from 39.6 to 68.5; mean deviation was 9.0 mm and then 4.8 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was worse, moving from 65.8 to 39.8; measured tremor was 14.8 deg/s and then 25.0 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_declines_stability_improves",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was worse, moving from 70.3 to 36.8; mean deviation was 4.7 mm and then 9.3 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was better, moving from 36.2 to 70.6; measured tremor was 25.9 deg/s and then 12.6 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_declines_stability_improves",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was worse, moving from 67.0 to 36.8; mean deviation was 4.9 mm and then 9.1 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was better, moving from 35.9 to 69.2; measured tremor was 26.2 deg/s and then 12.6 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_declines_stability_improves",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was worse, moving from 67.3 to 35.9; mean deviation was 5.0 mm and then 9.5 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was better, moving from 37.0 to 72.6; measured tremor was 25.9 deg/s and then 12.0 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_declines_stability_improves",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was worse, moving from 65.9 to 38.8; mean deviation was 5.2 mm and then 9.2 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was better, moving from 38.4 to 71.0; measured tremor was 25.3 deg/s and then 12.0 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Accuracy and stability moved in different directions, so the result is mixed.\",\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Review the accuracy-versus-stability tradeoff with the participant.\",\"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "mostly_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"stable\", \"observations\": [{\"statement\": \"Accuracy was stable: the score changed from 57.1 to 54.4, with mean path deviation changing from 6.6 mm to 6.9 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable: the score changed from 56.1 to 56.1, while tremor changed from 18.7 deg/s to 18.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Repeat the same standardized task at the next planned session.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "mostly_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"stable\", \"observations\": [{\"statement\": \"Accuracy was stable: the score changed from 53.0 to 55.7, with mean path deviation changing from 7.0 mm to 6.7 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable: the score changed from 54.0 to 53.9, while tremor changed from 18.9 deg/s to 18.6 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Repeat the same standardized task at the next planned session.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "mostly_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 52.7 to 56.3; mean deviation was 7.3 mm and then 6.4 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 52.5 to 53.5; measured tremor was 19.5 deg/s and then 19.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "mostly_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"stable\",\"observations\":[{\"statement\":\"Accuracy was stable: the score changed from 56.3 to 55.0, with mean path deviation changing from 6.5 mm to 6.6 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was stable: the score changed from 53.9 to 51.1, while tremor changed from 19.1 deg/s to 20.2 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Repeat the same standardized task at the next planned session.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 37.0 to 67.9; mean deviation was 9.2 mm and then 4.8 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 52.3 to 58.6; measured tremor was 19.3 deg/s and then 17.5 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 40.7 to 67.9; mean deviation was 8.9 mm and then 5.1 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 55.1 to 55.7; measured tremor was 18.4 deg/s and then 18.4 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 39.2 to 65.3; mean deviation was 8.8 mm and then 5.4 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 55.0 to 53.2; measured tremor was 18.1 deg/s and then 19.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_improves_stability_stable",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 36.9 to 67.0; mean deviation was 9.1 mm and then 4.9 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 54.8 to 56.2; measured tremor was 18.9 deg/s and then 17.7 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_stable_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was stable, moving from 52.2 to 51.9; mean deviation was 7.0 mm and then 7.0 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 68.8 to 33.8; measured tremor was 13.7 deg/s and then 26.4 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_stable_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"declined\",\"observations\":[{\"statement\":\"Accuracy was stable, moving from 52.6 to 52.0; mean deviation was 7.0 mm and then 7.2 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was worse, moving from 67.9 to 33.4; measured tremor was 14.0 deg/s and then 26.4 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Collect another compatible session before drawing a broader conclusion.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_stable_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was stable, moving from 55.1 to 54.3; mean deviation was 6.9 mm and then 6.7 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 66.1 to 39.2; measured tremor was 14.7 deg/s and then 25.0 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accuracy_stable_stability_declines",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\":\"declined\",\"observations\":[{\"statement\":\"Accuracy was worse, moving from 55.8 to 51.6; mean deviation was 6.6 mm and then 7.3 mm.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was worse, moving from 69.2 to 36.9; measured tremor was 12.9 deg/s and then 25.7 deg/s.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\":\"Collect another compatible session before drawing a broader conclusion.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "faster_but_scores_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 67.9 to 40.0; mean deviation was 5.1 mm and then 8.9 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 63.2 to 40.4; measured tremor was 15.6 deg/s and then 23.9 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "faster_but_scores_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 67.8 to 38.6; mean deviation was 5.0 mm and then 8.8 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 61.5 to 40.5; measured tremor was 15.9 deg/s and then 24.1 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "faster_but_scores_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 65.6 to 37.7; mean deviation was 5.3 mm and then 9.0 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 61.8 to 40.9; measured tremor was 16.0 deg/s and then 24.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "faster_but_scores_decline",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"declined\", \"observations\": [{\"statement\": \"Accuracy was worse, moving from 65.6 to 36.9; mean deviation was 5.4 mm and then 9.1 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was worse, moving from 61.8 to 42.8; measured tremor was 15.7 deg/s and then 23.5 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Collect another compatible session before drawing a broader conclusion.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "slower_but_scores_improve",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 36.5 to 66.4; mean deviation was 9.1 mm and then 5.2 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 38.9 to 64.3; measured tremor was 24.3 deg/s and then 14.5 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "slower_but_scores_improve",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 37.5 to 67.5; mean deviation was 9.0 mm and then 5.0 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 40.5 to 65.0; measured tremor was 24.3 deg/s and then 14.4 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "slower_but_scores_improve",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 38.7 to 71.1; mean deviation was 9.0 mm and then 4.7 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 39.4 to 68.3; measured tremor was 24.9 deg/s and then 13.6 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "slower_but_scores_improve",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 36.9 to 68.6; mean deviation was 9.2 mm and then 4.7 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 41.4 to 69.8; measured tremor was 23.6 deg/s and then 13.1 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accurate_with_low_coverage",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 44.7 to 75.0; mean deviation was 8.1 mm and then 4.1 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was better, moving from 51.9 to 56.7; measured tremor was 19.7 deg/s and then 18.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accurate_with_low_coverage",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 45.3 to 72.4; mean deviation was 7.9 mm and then 4.2 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 52.8 to 55.3; measured tremor was 19.5 deg/s and then 18.8 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accurate_with_low_coverage",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 44.5 to 70.5; mean deviation was 8.0 mm and then 4.5 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 56.5 to 59.3; measured tremor was 18.4 deg/s and then 17.3 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "accurate_with_low_coverage",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "reliable_input_has_no_reliability_reasons": true
+      },
+      "response": "{\"overall_pattern\": \"improved\", \"observations\": [{\"statement\": \"Accuracy was better, moving from 44.5 to 71.8; mean deviation was 8.0 mm and then 4.5 mm.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability was stable, moving from 56.3 to 54.5; measured tremor was 18.6 deg/s and then 18.5 deg/s.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"These results describe measured performance on this standardized task only; they are not a diagnosis or clinical outcome.\"],\"possible_next_step\": \"Continue monitoring performance at future sessions.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_invalid_calibration",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 46.2 and 66.6, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 46.5 and 70.8, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Calibration was invalid, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_invalid_calibration",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 44.0 and 69.6, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 45.3 and 68.1, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Calibration was invalid, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_invalid_calibration",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 44.8 and 71.7, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 46.5 and 68.9, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Calibration was invalid, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_invalid_calibration",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 43.6 and 70.7, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 43.2 and 69.0, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Calibration was invalid, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_imu",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 55.0 and 57.8, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 41.5 and 69.4, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"IMU samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_imu",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 53.2 and 56.4, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 41.3 and 69.1, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"IMU samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_imu",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 53.3 and 55.6, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 41.9 and 70.2, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"IMU samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_imu",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 55.5 and 55.4, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 43.8 and 74.2, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"IMU samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_vision",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 48.0 and 68.3, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 41.8 and 70.9, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Vision samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_vision",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 42.6 and 70.0, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 49.4 and 64.3, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Vision samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_vision",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 46.0 and 67.4, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 45.1 and 63.4, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Vision samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_vision",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 47.5 and 66.1, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 47.5 and 65.6, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Vision samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_vision",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\":\"unreliable\",\"observations\":[{\"statement\":\"Accuracy scores were 45.6 and 69.6, but the session comparison is unreliable.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability scores were 45.5 and 66.8, but no performance direction should be inferred from these sessions.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Vision samples were missing, so this comparison is not reliable.\"],\"possible_next_step\":\"Repeat the session after resolving the recorded data-quality issue.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_missing_vision",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 47.1 and 66.6, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 46.5 and 64.5, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Vision samples were missing, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_capture_warning",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\":\"unreliable\",\"observations\":[{\"statement\":\"Accuracy scores were 62.2 and 40.1, but the session comparison is unreliable.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability scores were 53.9 and 68.4, but no performance direction should be inferred from these sessions.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Capture warnings were present, so this comparison is not reliable.\"],\"possible_next_step\":\"Repeat the session after resolving the recorded data-quality issue.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_capture_warning",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\":\"unreliable\",\"observations\":[{\"statement\":\"Accuracy scores were 62.4 and 36.8, but the session comparison is unreliable.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability scores were 51.9 and 67.5, but no performance direction should be inferred from these sessions.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Capture warnings were present, so this comparison is not reliable.\"],\"possible_next_step\":\"Repeat the session after resolving the recorded data-quality issue.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_capture_warning",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\":\"unreliable\",\"observations\":[{\"statement\":\"Accuracy scores were 61.1 and 39.3, but the session comparison is unreliable.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability scores were 52.9 and 66.4, but no performance direction should be inferred from these sessions.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Capture warnings were present, so this comparison is not reliable.\"],\"possible_next_step\":\"Repeat the session after resolving the recorded data-quality issue.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_capture_warning",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 61.8 and 40.0, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 48.1 and 62.3, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Capture warnings were present, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_capture_warning",
+      "passed": false,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": false,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": false,
+        "unreliable_pattern_override": false,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\":\"mixed\",\"observations\":[{\"statement\":\"Accuracy was worse, moving from 59.7 to 39.8, but the session comparison is unreliable.\",\"metric_keys\":[\"accuracy_score\",\"mean_dev_mm\"]},{\"statement\":\"Stability was better, moving from 49.9 to 66.2, but no performance direction should be inferred from these sessions.\",\"metric_keys\":[\"stability_score\",\"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Capture warnings were present, so this comparison is not reliable.\"],\"possible_next_step\":\"Repeat the session after resolving the recorded data-quality issue.\",\"therapist_review_required\":true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_capture_warning",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 61.5 and 39.5, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 49.8 and 62.4, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Capture warnings were present, so this comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_score_version_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 40.1 and 71.2, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 38.2 and 71.1, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Score versions were 1.1.0 and 1.0.0, but the session comparison is unreliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_score_version_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 37.3 and 71.9, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 41.3 and 68.4, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Score versions were 1.1.0 and 1.0.0, but the session comparison is unreliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_score_version_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 38.6 and 67.0, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 38.9 and 69.7, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Score versions were 1.1.0 and 1.0.0, so the comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_score_version_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 38.4 and 67.1, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 41.6 and 67.8, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Score versions were 1.1.0 and 1.0.0, so the comparison is not reliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_score_version_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 41.1 and 72.7, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 37.0 and 69.3, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Score versions were 1.1.0 and 1.0.0, but the session comparison is unreliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_score_version_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 38.1 and 70.5, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 36.5 and 70.0, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Score versions were 1.1.0 and 1.0.0, but the session comparison is unreliable.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_task_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 37.5 and 70.2, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 65.8 and 33.9, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Task mismatch: these sessions are not reliable for performance comparison.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_task_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 40.3 and 66.9, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 60.7 and 40.1, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Task mismatch: these sessions are not reliable for performance comparison.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_task_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 36.8 and 70.4, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 63.9 and 35.3, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Task mismatch: these sessions are not reliable for performance comparison.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_task_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 37.6 and 69.4, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 63.1 and 39.5, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Task mismatch: these sessions are not a reliable comparison.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_task_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 37.6 and 67.8, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 61.1 and 39.7, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Task mismatch: these sessions are not a reliable comparison.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    },
+    {
+      "category": "unreliable_task_mismatch",
+      "passed": true,
+      "checks": {
+        "exact_top_level_keys": true,
+        "overall_pattern_valid": true,
+        "overall_pattern_correct": true,
+        "exactly_two_observations": true,
+        "observations_shaped": true,
+        "limitations_shaped": true,
+        "next_step_permitted": true,
+        "next_step_correct": true,
+        "therapist_review_required": true,
+        "safe_non_diagnostic_language": true,
+        "metric_keys_valid": true,
+        "primary_dimensions_covered": true,
+        "numbers_grounded": true,
+        "observation_directions_correct": true,
+        "unreliable_pattern_override": true,
+        "unreliable_reason_explained": true
+      },
+      "response": "{\"overall_pattern\": \"unreliable\", \"observations\": [{\"statement\": \"Accuracy scores were 36.2 and 72.5, but the session comparison is unreliable.\", \"metric_keys\": [\"accuracy_score\", \"mean_dev_mm\"]}, {\"statement\": \"Stability scores were 63.0 and 40.1, but no performance direction should be inferred from these sessions.\", \"metric_keys\": [\"stability_score\", \"tremor_rms_deg_s\"]}],\"conflicts_or_limitations\":[\"Task mismatch: these sessions are not reliable for performance comparison.\"],\"possible_next_step\": \"Repeat the session after resolving the recorded data-quality issue.\", \"therapist_review_required\": true}",
+      "query_error": null
+    }
+  ]
+}
