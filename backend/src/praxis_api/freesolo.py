@@ -3,8 +3,15 @@ from __future__ import annotations
 import json
 import math
 import re
+import ssl
 import urllib.error
 import urllib.request
+
+import certifi
+
+# Use certifi's CA bundle so HTTPS to the FreeSOLO endpoint works on Python
+# builds whose OpenSSL can't see the system root store (common on macOS).
+_TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 from dataclasses import dataclass
 from typing import Any
 
@@ -448,7 +455,7 @@ class FreeSoloAdapter:
         )
         try:
             with urllib.request.urlopen(
-                request, timeout=self.settings.freesolo_timeout_seconds
+                request, timeout=self.settings.freesolo_timeout_seconds, context=_TLS_CONTEXT
             ) as response:
                 envelope = json.loads(response.read())
             content = envelope["choices"][0]["message"]["content"]
