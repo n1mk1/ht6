@@ -6,6 +6,7 @@
 
 # Isolated Praxis web application outputs
 backend/.venv/
+.venv-ai/
 backend/data/
 backend/.pytest_cache/
 backend/.ruff_cache/
