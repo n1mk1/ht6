@@ -82,7 +82,7 @@ def test_sanitize_context_scrubs_all_text_fields():
 def test_prompt_block_contains_only_expected_content():
     ctx = UIContext(
         page="dashboard",
-        page_title="RehabTrace Dashboard",
+        page_title="Praxis Dashboard",
         visible_sections=[UISection(id="s", label="Sessions", description="List of sessions")],
         visible_metrics=[UIMetric(label="Accuracy", value="82.0", help_text="closeness to path")],
     )

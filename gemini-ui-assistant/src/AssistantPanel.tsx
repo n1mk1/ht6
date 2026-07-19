@@ -14,7 +14,7 @@ const MAX_QUESTION_CHARS = 500
 
 type Message = { role: 'user' | 'assistant'; text: string }
 
-/** Accessible help panel for the RehabTrace dashboard. */
+/** Accessible help panel for the Praxis dashboard. */
 export default function AssistantPanel({ uiContext }: { uiContext: UIContext }) {
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState('')

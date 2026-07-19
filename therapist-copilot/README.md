@@ -1,6 +1,6 @@
 # Therapist Copilot
 
-An AI teammate for the physiotherapist using RehabTrace. When a new session
+An AI teammate for the physiotherapist using Praxis. When a new session
 arrives from the device, the copilot automatically:
 
 1. **Triages data quality** — checks calibration, IMU sample counts, and

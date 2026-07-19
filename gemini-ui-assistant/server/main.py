@@ -1,4 +1,4 @@
-"""FastAPI service for the RehabTrace Gemini UI assistant.
+"""FastAPI service for the Praxis Gemini UI assistant.
 
 Runs on its own port (default 8002) so the existing backend is untouched.
 The Vite dev server proxies /assistant-api/* here.
@@ -19,7 +19,7 @@ from .schemas import AskRequest, AskResponse
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gemini_ui_assistant")
 
-app = FastAPI(title="RehabTrace Gemini UI Assistant", version="1.0.0")
+app = FastAPI(title="Praxis Gemini UI Assistant", version="1.0.0")
 
 settings = get_settings()
 app.add_middleware(

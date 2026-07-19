@@ -79,7 +79,7 @@ def ask_mock(question: str, ctx: UIContext) -> str:
         )
 
     if "what does this page show" in q or ("what" in q and "page" in q):
-        parts = [f"This screen is the {ctx.page_title or 'RehabTrace dashboard'}."]
+        parts = [f"This screen is the {ctx.page_title or 'Praxis dashboard'}."]
         if ctx.visible_sections:
             labels = ", ".join(s.label or s.id for s in ctx.visible_sections if s.label or s.id)
             parts.append(f"It contains these sections: {labels}.")

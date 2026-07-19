@@ -1,6 +1,6 @@
 # Gemini UI Assistant
 
-A self-contained accessibility assistant for the RehabTrace dashboard. It helps
+A self-contained accessibility assistant for the Praxis dashboard. It helps
 older adults understand what is currently on screen — page sections, metrics,
 buttons, and warnings — in plain, respectful language.
 

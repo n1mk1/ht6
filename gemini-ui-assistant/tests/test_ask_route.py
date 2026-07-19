@@ -21,7 +21,7 @@ def test_ask_returns_mock_answer(client, sample_context):
     assert res.status_code == 200
     body = res.json()
     assert body["mock"] is True
-    assert "RehabTrace Dashboard" in body["answer"]
+    assert "Praxis Dashboard" in body["answer"]
     assert "Sessions" in body["answer"]
 
 
@@ -112,7 +112,7 @@ def test_gemini_success_path(client, sample_context, settings, monkeypatch):
 
     async def fake_ask(question, context_block):
         # The prompt block must contain sanitized context, not raw JSON.
-        assert "RehabTrace Dashboard" in context_block
+        assert "Praxis Dashboard" in context_block
         assert "Accuracy" in context_block
         return "This screen shows your recorded sessions."
 

@@ -32,7 +32,7 @@ def client():
 def sample_context():
     return {
         "page": "dashboard",
-        "page_title": "RehabTrace Dashboard",
+        "page_title": "Praxis Dashboard",
         "visible_sections": [
             {
                 "id": "sessions-list",
@@ -50,7 +50,7 @@ def sample_context():
         "available_actions": [
             {
                 "label": "Sync from Pi",
-                "description": "Pulls the most recent session from the RehabTrace device.",
+                "description": "Pulls the most recent session from the Praxis device.",
             }
         ],
     }

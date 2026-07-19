@@ -1,4 +1,4 @@
-"""FastAPI service for the RehabTrace Therapist Copilot (port 8003).
+"""FastAPI service for the Praxis Therapist Copilot (port 8003).
 
 The Vite dev server proxies /copilot-api/* here.
 """
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     await task
 
 
-app = FastAPI(title="RehabTrace Therapist Copilot", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Praxis Therapist Copilot", version="1.0.0", lifespan=lifespan)
 
 settings = get_settings()
 app.add_middleware(
