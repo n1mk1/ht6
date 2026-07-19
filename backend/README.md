@@ -13,9 +13,11 @@ cp .env.example .env
 .venv/bin/uvicorn praxis_api.main:app --reload --port 8000
 ```
 
-SQLite migrations run at startup. The default database is `data/praxis.db`.
-Set `BACKEND_URL=http://<host>:8000` and
-`BACKEND_RUNS_PATH=/api/v1/qnx/sessions` on QNX.
+Persistence is MongoDB Atlas via Motor (async driver); indexes are created at
+startup. Set `PRAXIS_MONGODB_URI` to your Atlas connection string and
+`PRAXIS_MONGODB_DB` to the target database (see `.env.example`). Set
+`BACKEND_URL=http://<host>:8000` and `BACKEND_RUNS_PATH=/api/v1/qnx/sessions`
+on QNX.
 
 FreeSOLO HTTP inference requires `PRAXIS_FREESOLO_MODEL` and
 `PRAXIS_FREESOLO_API_KEY`. Until the current QNX payload supplies every metric
@@ -42,19 +44,26 @@ device run. This is not an authentication mechanism.
 
 ## Persistence
 
-Migration `001_initial.sql` creates:
+MongoDB Atlas collections (see `praxis_api/db.py` for index setup):
 
-- `users` for participant usernames and optional profile metadata;
-- `tasks` for task type, version, difficulty, hand, and original task metadata;
-- `sessions` for normalized scores, timing, movement, quality, trace fields,
-  artifacts, and the complete original payload plus its SHA-256 digest;
-- `deterministic_comparisons` for versioned compatible-run calculations; and
-- `model_results` for FreeSOLO status and outputs, kept separate from
-  deterministic comparisons.
+- `users` — participant usernames and optional profile metadata, unique on
+  lowercased username;
+- `tasks` — a dedup catalog of task type/version/difficulty/hand combinations,
+  referenced by `task_id` from sessions;
+- `sessions` — one document per run, embedding timing, scores, metrics,
+  quality, trace, artifacts, the complete original payload, its SHA-256
+  digest, and (since both are always read and written together with the
+  session) the `model_result` and `deterministic_comparison` for that run;
+  unique on `(session_id, device_id)`;
+- `counters` — a single atomic-increment document per collection, used to hand
+  out stable integer ids so the API's `id` fields keep the same shape they had
+  under the previous SQLite storage.
 
-Identical repeats of `(device_id, session_id)` return `200`. The first accepted
-payload returns `201`; conflicting reuse returns non-retryable `409`, and schema
-validation failures return `422`. QNX keeps its local run on all HTTP failures.
+`ingest()` wraps the user/task upsert and session insert in a MongoDB Atlas
+multi-document transaction. Identical repeats of `(device_id, session_id)`
+return `200`. The first accepted payload returns `201`; conflicting reuse
+returns non-retryable `409`, and schema validation failures return `422`. QNX
+keeps its local run on all HTTP failures.
 
 ## Verification
 

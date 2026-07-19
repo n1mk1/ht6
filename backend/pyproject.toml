@@ -5,6 +5,7 @@ description = "Praxis session ingestion, comparison, and dashboard API"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1",
+    "motor>=3.6,<4",
     "pydantic-settings>=2.7,<3",
     "uvicorn[standard]>=0.34,<1",
 ]
@@ -12,7 +13,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "httpx>=0.28,<1",
+    "mongomock-motor>=0.0.34,<1",
     "pytest>=8,<9",
+    "pytest-asyncio>=0.24,<1",
     "ruff>=0.9,<1",
 ]
 
@@ -25,6 +28,7 @@ packages = ["src/praxis_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100

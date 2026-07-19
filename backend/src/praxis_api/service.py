@@ -2,16 +2,30 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
+from motor.motor_asyncio import AsyncIOMotorClientSession
+from pymongo.errors import DuplicateKeyError
 
-from .comparisons import POLICY_VERSION, compare_sessions
+from .comparisons import compare_sessions
 from .db import Database
 from .freesolo import AnalysisResult, FreeSoloAdapter
 from .schemas import QnxSessionPayload, UserResolve, UserUpdate
+
+MODEL_RESULT_FIELDS = (
+    "status",
+    "adapter",
+    "model_version",
+    "regression_score",
+    "regression_flag",
+    "confidence",
+    "overall_pattern",
+    "result",
+    "error_code",
+    "error_detail",
+)
 
 
 def now_iso() -> str:
@@ -22,288 +36,264 @@ def json_text(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"), sort_keys=True)
 
 
-def json_value(value: str | None, fallback: Any = None) -> Any:
-    if value is None:
-        return fallback
-    return json.loads(value)
-
-
 class PraxisService:
     def __init__(self, database: Database, adapter: FreeSoloAdapter):
         self.database = database
         self.adapter = adapter
 
-    def ingest(
+    @property
+    def db(self):
+        return self.database.db
+
+    # -- ingestion ---------------------------------------------------------
+
+    async def ingest(
         self, payload: QnxSessionPayload, original_payload: dict[str, Any]
     ) -> tuple[dict[str, Any], bool]:
         original = original_payload
-        original_json = json_text(original)
-        payload_hash = hashlib.sha256(original_json.encode()).hexdigest()
+        payload_hash = hashlib.sha256(json_text(original).encode()).hexdigest()
         received_at = now_iso()
-        with self.database.transaction() as connection:
-            existing = connection.execute(
-                "SELECT id, payload_sha256 FROM sessions WHERE session_id=? AND device_id=?",
-                (payload.session_id, payload.device_id),
-            ).fetchone()
-            if existing:
-                if existing["payload_sha256"] != payload_hash:
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "code": "session_identity_conflict",
-                            "message": (
-                                "session_id and device_id already identify a different payload"
-                            ),
-                            "retryable": False,
-                        },
-                    )
-                return self._session_by_pk(connection, existing["id"]), False
 
-            user_id = self._upsert_user(connection, payload.username, received_at)
-            task_dict = original["task"]
-            task_id = self._upsert_task(connection, task_dict, received_at)
-            metrics = payload.metrics.model_dump(mode="json", exclude_none=False)
-            quality = payload.quality.model_dump(mode="json", exclude_none=False)
-            scores = payload.scores.model_dump(mode="json", exclude_none=False)
-            timing = payload.timing.model_dump(mode="json", exclude_none=False)
-            trace = payload.trace.model_dump(mode="json", exclude_none=False)
-            cursor = connection.execute(
-                """
-                INSERT INTO sessions (
-                    session_id, device_id, user_id, task_id, schema_version, created_at,
-                    started_at, duration_ms, accuracy_score, stability_score, accuracy_band,
-                    stability_band, score_version, coverage_pct, completion_time_seconds,
-                    mean_dev_mm, max_dev_mm, rms_dev_mm, tremor_rms_deg_s, gyro_rms_deg_s,
-                    peak_angular_velocity_deg_s, calibration_valid, quality_warnings_json,
-                    task_json, timing_json, scores_json, metrics_json, quality_json, trace_json,
-                    percentiles_json, explanation_json, score_definitions_json, artifacts_json,
-                    original_payload_json, payload_sha256, received_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """,
-                (
-                    payload.session_id,
-                    payload.device_id,
-                    user_id,
-                    task_id,
-                    payload.schema_version,
-                    payload.created_at.isoformat().replace("+00:00", "Z"),
-                    timing.get("started_at"),
-                    timing.get("duration_ms"),
-                    scores.get("accuracy"),
-                    scores.get("stability"),
-                    scores.get("accuracy_band"),
-                    scores.get("stability_band"),
-                    scores.get("version"),
-                    metrics.get("coverage_pct"),
-                    metrics.get("completion_time_seconds"),
-                    metrics.get("mean_dev_mm"),
-                    metrics.get("max_dev_mm"),
-                    metrics.get("rms_dev_mm"),
-                    metrics.get("tremor_rms_deg_s"),
-                    metrics.get("gyro_rms_deg_s"),
-                    metrics.get("peak_angular_velocity_deg_s"),
-                    None
-                    if quality.get("calibration_valid") is None
-                    else int(quality["calibration_valid"]),
-                    json_text(quality.get("warnings", [])),
-                    json_text(task_dict),
-                    json_text(timing),
-                    json_text(scores),
-                    json_text(metrics),
-                    json_text(quality),
-                    json_text(trace),
-                    json_text(original.get("percentiles"))
-                    if original.get("percentiles") is not None
-                    else None,
-                    json_text(original.get("explanation"))
-                    if original.get("explanation") is not None
-                    else None,
-                    json_text(original.get("score_definitions"))
-                    if original.get("score_definitions") is not None
-                    else None,
-                    json_text(original.get("artifacts"))
-                    if original.get("artifacts") is not None
-                    else None,
-                    original_json,
-                    payload_hash,
-                    received_at,
-                ),
-            )
-            session_pk = cursor.lastrowid
-            current = self._session_by_pk(connection, session_pk)
-            reference_row = connection.execute(
-                """
-                SELECT s.id FROM sessions s
-                WHERE s.user_id=? AND s.task_id=? AND s.id<>?
-                ORDER BY s.created_at DESC, s.id DESC LIMIT 1
-                """,
-                (user_id, task_id, session_pk),
-            ).fetchone()
-            reference = (
-                self._session_by_pk(connection, reference_row["id"]) if reference_row else None
-            )
-            if reference:
-                result = compare_sessions(reference, current)
-                connection.execute(
-                    """
-                    INSERT INTO deterministic_comparisons
-                    (reference_session_pk,current_session_pk,policy_version,compatibility_status,result_json,created_at)
-                    VALUES (?,?,?,?,?,?)
-                    """,
-                    (
-                        reference["id"],
-                        session_pk,
-                        POLICY_VERSION,
-                        "compatible" if result["compatible"] else "incompatible",
-                        json_text(result),
-                        received_at,
-                    ),
+        existing = await self.db.sessions.find_one(
+            {"session_id": payload.session_id, "device_id": payload.device_id}
+        )
+        if existing:
+            if existing["payload_sha256"] != payload_hash:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "session_identity_conflict",
+                        "message": (
+                            "session_id and device_id already identify a different payload"
+                        ),
+                        "retryable": False,
+                    },
                 )
-            connection.execute(
-                """
-                INSERT INTO model_results
-                (session_pk,reference_session_pk,status,adapter,created_at,updated_at)
-                VALUES (?,?,?,?,?,?)
-                """,
-                (
-                    session_pk,
-                    reference["id"] if reference else None,
-                    "pending",
-                    "freesolo_http",
-                    received_at,
-                    received_at,
-                ),
+            return await self._hydrate_session(existing), False
+
+        task_dict = original["task"]
+        metrics = payload.metrics.model_dump(mode="json", exclude_none=False)
+        quality = payload.quality.model_dump(mode="json", exclude_none=False)
+        scores = payload.scores.model_dump(mode="json", exclude_none=False)
+        timing = payload.timing.model_dump(mode="json", exclude_none=False)
+        trace = payload.trace.model_dump(mode="json", exclude_none=False)
+
+        async with self.database.transaction() as db_session:
+            user_id = await self._upsert_user(payload.username, received_at, db_session)
+            task_id = await self._upsert_task(task_dict, received_at, db_session)
+            session_pk = await self.database.next_id("sessions", db_session)
+
+            doc: dict[str, Any] = {
+                "_id": session_pk,
+                "session_id": payload.session_id,
+                "device_id": payload.device_id,
+                "user_id": user_id,
+                "task_id": task_id,
+                "schema_version": payload.schema_version,
+                "created_at": payload.created_at.isoformat().replace("+00:00", "Z"),
+                "received_at": received_at,
+                "task": task_dict,
+                "timing": timing,
+                "scores": scores,
+                "metrics": metrics,
+                "quality": quality,
+                "trace": trace,
+                "percentiles": original.get("percentiles"),
+                "explanation": original.get("explanation"),
+                "score_definitions": original.get("score_definitions"),
+                "artifacts": original.get("artifacts"),
+                "original_payload": original,
+                "payload_sha256": payload_hash,
+                "model_result": None,
+                "deterministic_comparison": None,
+            }
+
+            reference_docs = await (
+                self.db.sessions.find(
+                    {"user_id": user_id, "task_id": task_id, "_id": {"$ne": session_pk}},
+                    session=db_session,
+                )
+                .sort([("created_at", -1), ("_id", -1)])
+                .limit(1)
+                .to_list(1)
             )
+            reference_doc = reference_docs[0] if reference_docs else None
+            if reference_doc is not None:
+                doc["deterministic_comparison"] = compare_sessions(reference_doc, doc)
 
-        return self.get_session(payload.device_id, payload.session_id), True
+            doc["model_result"] = {
+                "status": "pending",
+                "adapter": "freesolo_http",
+                "model_version": None,
+                "regression_score": None,
+                "regression_flag": None,
+                "confidence": None,
+                "overall_pattern": None,
+                "result": None,
+                "error_code": None,
+                "error_detail": None,
+                "reference_session_pk": reference_doc["_id"] if reference_doc else None,
+                "updated_at": received_at,
+            }
 
-    def analyze_session(self, session_pk: int) -> None:
-        with self.database.connect() as connection:
-            row = connection.execute(
-                "SELECT reference_session_pk FROM model_results WHERE session_pk=?",
-                (session_pk,),
-            ).fetchone()
-            if not row:
-                return
-            current = self._session_by_pk(connection, session_pk)
-            reference = (
-                self._session_by_pk(connection, row["reference_session_pk"])
-                if row["reference_session_pk"] is not None
-                else None
-            )
-        self._save_analysis(session_pk, self.adapter.analyze(reference, current))
+            await self.db.sessions.insert_one(doc, session=db_session)
 
-    def list_users(self) -> list[dict[str, Any]]:
-        with self.database.connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT u.*, COUNT(s.id) session_count, MAX(s.created_at) latest_session_at
-                FROM users u LEFT JOIN sessions s ON s.user_id=u.id
-                GROUP BY u.id ORDER BY COALESCE(MAX(s.created_at), u.created_at) DESC
-                """
-            ).fetchall()
-            return [dict(row) for row in rows]
+        return await self._hydrate_session(doc), True
 
-    def resolve_user(self, request: UserResolve) -> tuple[dict[str, Any], bool]:
-        timestamp = now_iso()
-        with self.database.transaction() as connection:
-            existing = connection.execute(
-                "SELECT id FROM users WHERE username=?", (request.username,)
-            ).fetchone()
-            if existing:
-                user_id = existing["id"]
-                created = False
-            else:
-                user_id = self._upsert_user(connection, request.username, timestamp)
-                created = True
-        return self.get_user(user_id), created
+    async def analyze_session(self, session_pk: int) -> None:
+        doc = await self.db.sessions.find_one({"_id": session_pk})
+        if not doc or doc.get("model_result") is None:
+            return
+        reference_pk = doc["model_result"].get("reference_session_pk")
+        reference_doc = (
+            await self.db.sessions.find_one({"_id": reference_pk})
+            if reference_pk is not None
+            else None
+        )
+        current = await self._adapter_input(doc)
+        reference = await self._adapter_input(reference_doc) if reference_doc else None
+        await self._save_analysis(session_pk, self.adapter.analyze(reference, current))
 
-    def get_user(self, user_id: int) -> dict[str, Any]:
-        with self.database.connect() as connection:
-            row = connection.execute(
-                """
-                SELECT u.*, COUNT(s.id) session_count, MAX(s.created_at) latest_session_at
-                FROM users u LEFT JOIN sessions s ON s.user_id=u.id
-                WHERE u.id=? GROUP BY u.id
-                """,
-                (user_id,),
-            ).fetchone()
-            if not row:
-                raise HTTPException(404, detail={"code": "user_not_found"})
-            return dict(row)
+    async def _adapter_input(self, session_doc: dict[str, Any]) -> dict[str, Any]:
+        user = await self.db.users.find_one({"_id": session_doc["user_id"]})
+        return {
+            "session_id": session_doc["session_id"],
+            "username": user["username"] if user else None,
+            "created_at": session_doc["created_at"],
+            "task": session_doc["task"],
+            "metrics": session_doc["metrics"],
+            "quality": session_doc["quality"],
+        }
 
-    def update_user(self, user_id: int, update: UserUpdate) -> dict[str, Any]:
+    async def _save_analysis(self, session_pk: int, result: AnalysisResult) -> None:
+        await self.db.sessions.update_one(
+            {"_id": session_pk},
+            {
+                "$set": {
+                    "model_result.status": result.status,
+                    "model_result.adapter": result.adapter,
+                    "model_result.model_version": result.model_version,
+                    "model_result.regression_score": result.regression_score,
+                    "model_result.regression_flag": result.regression_flag,
+                    "model_result.confidence": result.confidence,
+                    "model_result.overall_pattern": result.overall_pattern,
+                    "model_result.result": result.result,
+                    "model_result.error_code": result.error_code,
+                    "model_result.error_detail": result.error_detail,
+                    "model_result.updated_at": now_iso(),
+                }
+            },
+        )
+
+    # -- users ---------------------------------------------------------------
+
+    async def list_users(self) -> list[dict[str, Any]]:
+        stats: dict[int, dict[str, Any]] = {}
+        async for row in self.db.sessions.aggregate(
+            [
+                {
+                    "$group": {
+                        "_id": "$user_id",
+                        "session_count": {"$sum": 1},
+                        "latest_session_at": {"$max": "$created_at"},
+                    }
+                }
+            ]
+        ):
+            stats[row["_id"]] = row
+        users = await self.db.users.find().to_list(None)
+        output = [self._user_out(user, stats.get(user["_id"])) for user in users]
+        output.sort(key=lambda user: user["latest_session_at"] or user["created_at"], reverse=True)
+        return output
+
+    async def resolve_user(self, request: UserResolve) -> tuple[dict[str, Any], bool]:
+        existing = await self.db.users.find_one({"username_lower": request.username.lower()})
+        if existing:
+            return await self.get_user(existing["_id"]), False
+        user_id = await self._upsert_user(request.username, now_iso())
+        return await self.get_user(user_id), True
+
+    async def get_user(self, user_id: int) -> dict[str, Any]:
+        user = await self.db.users.find_one({"_id": user_id})
+        if not user:
+            raise HTTPException(404, detail={"code": "user_not_found"})
+        stats = await self.db.sessions.aggregate(
+            [
+                {"$match": {"user_id": user_id}},
+                {
+                    "$group": {
+                        "_id": "$user_id",
+                        "session_count": {"$sum": 1},
+                        "latest_session_at": {"$max": "$created_at"},
+                    }
+                },
+            ]
+        ).to_list(1)
+        return self._user_out(user, stats[0] if stats else None)
+
+    async def update_user(self, user_id: int, update: UserUpdate) -> dict[str, Any]:
         fields = update.model_dump(exclude_unset=True)
         if not fields:
-            return self.get_user(user_id)
+            return await self.get_user(user_id)
         fields["updated_at"] = now_iso()
-        assignments = ", ".join(f"{name}=?" for name in fields)
-        with self.database.transaction() as connection:
-            cursor = connection.execute(
-                f"UPDATE users SET {assignments} WHERE id=?",  # noqa: S608
-                (*fields.values(), user_id),
-            )
-            if cursor.rowcount == 0:
-                raise HTTPException(404, detail={"code": "user_not_found"})
-        return self.get_user(user_id)
+        result = await self.db.users.update_one({"_id": user_id}, {"$set": fields})
+        if result.matched_count == 0:
+            raise HTTPException(404, detail={"code": "user_not_found"})
+        return await self.get_user(user_id)
 
-    def list_sessions(
+    # -- sessions --------------------------------------------------------------
+
+    async def list_sessions(
         self, user_id: int, limit: int = 100, offset: int = 0
     ) -> list[dict[str, Any]]:
-        self.get_user(user_id)
-        with self.database.connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT s.id FROM sessions s WHERE s.user_id=?
-                ORDER BY s.created_at DESC, s.id DESC LIMIT ? OFFSET ?
-                """,
-                (user_id, limit, offset),
-            ).fetchall()
-            return [self._session_by_pk(connection, row["id"], compact=True) for row in rows]
+        await self.get_user(user_id)
+        docs = await (
+            self.db.sessions.find({"user_id": user_id})
+            .sort([("created_at", -1), ("_id", -1)])
+            .skip(offset)
+            .limit(limit)
+            .to_list(limit)
+        )
+        return [await self._hydrate_session(doc, compact=True) for doc in docs]
 
-    def latest(self, user_id: int) -> dict[str, Any]:
-        sessions = self.list_sessions(user_id, 1)
+    async def latest(self, user_id: int) -> dict[str, Any]:
+        sessions = await self.list_sessions(user_id, 1)
         if not sessions:
             raise HTTPException(404, detail={"code": "session_not_found"})
-        return self.get_session(sessions[0]["device_id"], sessions[0]["session_id"])
+        return await self.get_session(sessions[0]["device_id"], sessions[0]["session_id"])
 
-    def get_session(self, device_id: str, session_id: str) -> dict[str, Any]:
-        with self.database.connect() as connection:
-            row = connection.execute(
-                "SELECT id FROM sessions WHERE device_id=? AND session_id=?",
-                (device_id, session_id),
-            ).fetchone()
-            if not row:
-                raise HTTPException(404, detail={"code": "session_not_found"})
-            return self._session_by_pk(connection, row["id"])
+    async def get_session(self, device_id: str, session_id: str) -> dict[str, Any]:
+        doc = await self.db.sessions.find_one({"device_id": device_id, "session_id": session_id})
+        if doc is None:
+            raise HTTPException(404, detail={"code": "session_not_found"})
+        return await self._hydrate_session(doc)
 
-    def trends(self, user_id: int, limit: int = 50) -> dict[str, Any]:
-        sessions = list(reversed(self.list_sessions(user_id, limit)))
-        series = []
-        for session in sessions:
-            series.append(
-                {
-                    "session_id": session["session_id"],
-                    "device_id": session["device_id"],
-                    "created_at": session["created_at"],
-                    "task": session["task"],
-                    "accuracy": session["scores"].get("accuracy"),
-                    "stability": session["scores"].get("stability"),
-                    "completion_time_seconds": session["metrics"].get("completion_time_seconds"),
-                    "coverage_pct": session["metrics"].get("coverage_pct"),
-                }
-            )
+    async def trends(self, user_id: int, limit: int = 50) -> dict[str, Any]:
+        sessions = list(reversed(await self.list_sessions(user_id, limit)))
+        series = [
+            {
+                "session_id": session["session_id"],
+                "device_id": session["device_id"],
+                "created_at": session["created_at"],
+                "task": session["task"],
+                "accuracy": session["scores"].get("accuracy"),
+                "stability": session["scores"].get("stability"),
+                "completion_time_seconds": session["metrics"].get("completion_time_seconds"),
+                "coverage_pct": session["metrics"].get("coverage_pct"),
+            }
+            for session in sessions
+        ]
         return {"user_id": user_id, "series": series}
 
-    def compare(
+    async def compare(
         self,
         reference_device: str,
         reference_session: str,
         current_device: str,
         current_session: str,
     ) -> dict[str, Any]:
-        reference = self.get_session(reference_device, reference_session)
-        current = self.get_session(current_device, current_session)
+        reference = await self.get_session(reference_device, reference_session)
+        current = await self.get_session(current_device, current_session)
         if reference["user"]["id"] != current["user"]["id"]:
             raise HTTPException(422, detail={"code": "different_users"})
         result = compare_sessions(reference, current)
@@ -316,7 +306,7 @@ class PraxisService:
             "model_prediction": current.get("model_result"),
         }
 
-    def baseline_comparison(
+    async def baseline_comparison(
         self,
         user_id: int,
         current_device: str | None = None,
@@ -331,25 +321,29 @@ class PraxisService:
                 },
             )
         current = (
-            self.get_session(current_device, current_session)
+            await self.get_session(current_device, current_session)
             if current_device and current_session
-            else self.latest(user_id)
+            else await self.latest(user_id)
         )
         if current["user"]["id"] != user_id:
             raise HTTPException(422, detail={"code": "different_users"})
-        with self.database.connect() as connection:
-            row = connection.execute(
-                """
-                SELECT id FROM sessions
-                WHERE user_id=? AND task_id=(SELECT task_id FROM sessions WHERE id=?)
-                  AND id<>? AND created_at<=?
-                ORDER BY created_at ASC, id ASC LIMIT 1
-                """,
-                (user_id, current["id"], current["id"], current["created_at"]),
-            ).fetchone()
-            if not row:
-                raise HTTPException(404, detail={"code": "compatible_baseline_not_found"})
-            baseline = self._session_by_pk(connection, row["id"])
+        current_doc = await self.db.sessions.find_one({"_id": current["id"]})
+        baseline_docs = await (
+            self.db.sessions.find(
+                {
+                    "user_id": user_id,
+                    "task_id": current_doc["task_id"],
+                    "_id": {"$ne": current["id"]},
+                    "created_at": {"$lte": current["created_at"]},
+                }
+            )
+            .sort([("created_at", 1), ("_id", 1)])
+            .limit(1)
+            .to_list(1)
+        )
+        if not baseline_docs:
+            raise HTTPException(404, detail={"code": "compatible_baseline_not_found"})
+        baseline = await self._hydrate_session(baseline_docs[0])
         result = compare_sessions(baseline, current)
         return {
             "baseline": baseline,
@@ -358,127 +352,107 @@ class PraxisService:
             "model_prediction": current.get("model_result"),
         }
 
-    def _save_analysis(self, session_pk: int, result: AnalysisResult) -> None:
-        with self.database.transaction() as connection:
-            connection.execute(
-                """
-                UPDATE model_results SET status=?,adapter=?,model_version=?,regression_score=?,
-                regression_flag=?,confidence=?,overall_pattern=?,result_json=?,error_code=?,
-                error_detail=?,updated_at=? WHERE session_pk=?
-                """,
-                (
-                    result.status,
-                    result.adapter,
-                    result.model_version,
-                    result.regression_score,
-                    None if result.regression_flag is None else int(result.regression_flag),
-                    result.confidence,
-                    result.overall_pattern,
-                    json_text(result.result) if result.result is not None else None,
-                    result.error_code,
-                    result.error_detail,
-                    now_iso(),
-                    session_pk,
-                ),
+    # -- internal helpers --------------------------------------------------
+
+    async def _upsert_user(
+        self, username: str, timestamp: str, session: AsyncIOMotorClientSession | None = None
+    ) -> int:
+        username_lower = username.lower()
+        existing = await self.db.users.find_one({"username_lower": username_lower}, session=session)
+        if existing:
+            return existing["_id"]
+        user_id = await self.database.next_id("users", session)
+        doc = {
+            "_id": user_id,
+            "username": username,
+            "username_lower": username_lower,
+            "display_name": None,
+            "notes": None,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        }
+        try:
+            await self.db.users.insert_one(doc, session=session)
+        except DuplicateKeyError:
+            existing = await self.db.users.find_one(
+                {"username_lower": username_lower}, session=session
             )
+            return existing["_id"]
+        return user_id
 
-    def _upsert_user(self, connection: sqlite3.Connection, username: str, timestamp: str) -> int:
-        connection.execute(
-            "INSERT OR IGNORE INTO users(username,created_at,updated_at) VALUES (?,?,?)",
-            (username, timestamp, timestamp),
-        )
-        return connection.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()[
-            "id"
-        ]
-
-    def _upsert_task(
-        self, connection: sqlite3.Connection, task: dict[str, Any], timestamp: str
+    async def _upsert_task(
+        self, task: dict[str, Any], timestamp: str, session: AsyncIOMotorClientSession | None = None
     ) -> int:
         difficulty = str(task.get("difficulty", "") if task.get("difficulty") is not None else "")
         hand = str(task.get("hand", task.get("dominant_hand", "")) or "")
-        connection.execute(
-            """
-            INSERT OR IGNORE INTO tasks
-            (task_type,task_version,difficulty_key,hand_key,metadata_json,created_at)
-            VALUES (?,?,?,?,?,?)
-            """,
-            (task["type"], task["version"], difficulty, hand, json_text(task), timestamp),
-        )
-        return connection.execute(
-            "SELECT id FROM tasks WHERE task_type=? AND task_version=? "
-            "AND difficulty_key=? AND hand_key=?",
-            (task["type"], task["version"], difficulty, hand),
-        ).fetchone()["id"]
+        key = {
+            "task_type": task["type"],
+            "task_version": task["version"],
+            "difficulty_key": difficulty,
+            "hand_key": hand,
+        }
+        existing = await self.db.tasks.find_one(key, session=session)
+        if existing:
+            return existing["_id"]
+        task_id = await self.database.next_id("tasks", session)
+        doc = {"_id": task_id, **key, "metadata": task, "created_at": timestamp}
+        try:
+            await self.db.tasks.insert_one(doc, session=session)
+        except DuplicateKeyError:
+            existing = await self.db.tasks.find_one(key, session=session)
+            return existing["_id"]
+        return task_id
 
-    def _session_by_pk(
-        self, connection: sqlite3.Connection, session_pk: int, compact: bool = False
-    ) -> dict[str, Any]:
-        row = connection.execute(
-            """
-            SELECT s.*, u.username, u.display_name, t.task_type, t.task_version,
-                   mr.status model_status, mr.adapter model_adapter, mr.model_version,
-                   mr.regression_score, mr.regression_flag, mr.confidence,
-                   mr.overall_pattern, mr.result_json model_result_json,
-                   mr.error_code model_error_code, mr.error_detail model_error_detail,
-                   dc.result_json comparison_json
-            FROM sessions s
-            JOIN users u ON u.id=s.user_id
-            JOIN tasks t ON t.id=s.task_id
-            LEFT JOIN model_results mr ON mr.session_pk=s.id
-            LEFT JOIN deterministic_comparisons dc ON dc.current_session_pk=s.id
-                AND dc.policy_version=?
-            WHERE s.id=?
-            """,
-            (POLICY_VERSION, session_pk),
-        ).fetchone()
-        if not row:
-            raise HTTPException(404, detail={"code": "session_not_found"})
+    async def _hydrate_session(self, doc: dict[str, Any], compact: bool = False) -> dict[str, Any]:
+        user = await self.db.users.find_one({"_id": doc["user_id"]})
         output = {
-            "id": row["id"],
-            "session_id": row["session_id"],
-            "device_id": row["device_id"],
-            "schema_version": row["schema_version"],
-            "created_at": row["created_at"],
-            "received_at": row["received_at"],
+            "id": doc["_id"],
+            "session_id": doc["session_id"],
+            "device_id": doc["device_id"],
+            "schema_version": doc["schema_version"],
+            "created_at": doc["created_at"],
+            "received_at": doc["received_at"],
             "user": {
-                "id": row["user_id"],
-                "username": row["username"],
-                "display_name": row["display_name"],
-            },
-            "task": json_value(row["task_json"], {}),
-            "timing": json_value(row["timing_json"], {}),
-            "scores": json_value(row["scores_json"], {}),
-            "metrics": json_value(row["metrics_json"], {}),
-            "quality": json_value(row["quality_json"], {}),
-            "model_result": self._model_result(row),
-            "deterministic_comparison": json_value(row["comparison_json"]),
+                "id": user["_id"],
+                "username": user["username"],
+                "display_name": user.get("display_name"),
+            }
+            if user
+            else None,
+            "task": doc["task"],
+            "timing": doc["timing"],
+            "scores": doc["scores"],
+            "metrics": doc["metrics"],
+            "quality": doc["quality"],
+            "model_result": self._model_result_out(doc.get("model_result")),
+            "deterministic_comparison": doc.get("deterministic_comparison"),
         }
         if not compact:
             output.update(
-                trace=json_value(row["trace_json"], {}),
-                percentiles=json_value(row["percentiles_json"]),
-                explanation=json_value(row["explanation_json"]),
-                score_definitions=json_value(row["score_definitions_json"]),
-                artifacts=json_value(row["artifacts_json"]),
-                original_payload=json_value(row["original_payload_json"], {}),
+                trace=doc["trace"],
+                percentiles=doc.get("percentiles"),
+                explanation=doc.get("explanation"),
+                score_definitions=doc.get("score_definitions"),
+                artifacts=doc.get("artifacts"),
+                original_payload=doc["original_payload"],
             )
         return output
 
     @staticmethod
-    def _model_result(row: sqlite3.Row) -> dict[str, Any] | None:
-        if row["model_status"] is None:
+    def _model_result_out(model_result: dict[str, Any] | None) -> dict[str, Any] | None:
+        if model_result is None:
             return None
+        return {field: model_result.get(field) for field in MODEL_RESULT_FIELDS}
+
+    @staticmethod
+    def _user_out(user: dict[str, Any], stats: dict[str, Any] | None) -> dict[str, Any]:
         return {
-            "status": row["model_status"],
-            "adapter": row["model_adapter"],
-            "model_version": row["model_version"],
-            "regression_score": row["regression_score"],
-            "regression_flag": None
-            if row["regression_flag"] is None
-            else bool(row["regression_flag"]),
-            "confidence": row["confidence"],
-            "overall_pattern": row["overall_pattern"],
-            "result": json_value(row["model_result_json"]),
-            "error_code": row["model_error_code"],
-            "error_detail": row["model_error_detail"],
+            "id": user["_id"],
+            "username": user["username"],
+            "display_name": user.get("display_name"),
+            "notes": user.get("notes"),
+            "created_at": user["created_at"],
+            "updated_at": user["updated_at"],
+            "session_count": stats["session_count"] if stats else 0,
+            "latest_session_at": stats["latest_session_at"] if stats else None,
         }

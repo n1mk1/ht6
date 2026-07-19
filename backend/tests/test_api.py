@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import copy
-import json
 
 
 def post(client, payload):
     return client.post("/api/v1/qnx/sessions", json=payload)
 
 
-def test_contract_fixture_ingests_and_preserves_original(client, app, payload):
+async def test_contract_fixture_ingests_and_preserves_original(client, app, payload):
     response = post(client, payload)
     assert response.status_code == 201
     assert response.json()["created"] is True
@@ -25,20 +24,19 @@ def test_contract_fixture_ingests_and_preserves_original(client, app, payload):
     assert body["original_payload"] == payload
     assert body["model_result"]["error_code"] == "no_reference_session"
 
-    with app.state.database.connect() as connection:
-        row = connection.execute("SELECT * FROM sessions").fetchone()
-        assert row["coverage_pct"] == 72.4
-        assert json.loads(row["quality_json"])["calibration_valid"] is True
+    doc = await app.state.database.db.sessions.find_one({"session_id": "session_015856"})
+    assert doc["metrics"]["coverage_pct"] == 72.4
+    assert doc["quality"]["calibration_valid"] is True
 
 
-def test_ingestion_is_idempotent_by_session_and_device(client, app, payload):
+async def test_ingestion_is_idempotent_by_session_and_device(client, app, payload):
     assert post(client, payload).status_code == 201
     duplicate = post(client, payload)
     assert duplicate.status_code == 200
     assert duplicate.json()["created"] is False
-    with app.state.database.connect() as connection:
-        assert connection.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
-        assert connection.execute("SELECT COUNT(*) FROM model_results").fetchone()[0] == 1
+    assert await app.state.database.db.sessions.count_documents({}) == 1
+    stored = await app.state.database.db.sessions.find_one({})
+    assert stored["model_result"] is not None
 
 
 def test_identity_collision_is_clear_non_retryable_conflict(client, payload):

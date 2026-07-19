@@ -13,15 +13,17 @@ from .schemas import QnxSessionPayload, UserResolve, UserUpdate
 from .service import PraxisService
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, database: Database | None = None) -> FastAPI:
     settings = settings or get_settings()
-    database = Database(settings.database_path)
+    database = database or Database(settings.mongodb_uri, settings.mongodb_db)
     service = PraxisService(database, FreeSoloAdapter(settings))
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        database.migrate()
+        database.connect()
+        await database.ensure_indexes()
         yield
+        database.close()
 
     app = FastAPI(
         title="Praxis API",
@@ -62,7 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         background_tasks: BackgroundTasks,
     ) -> dict:
         original_payload = await request.json()
-        session, created = service.ingest(payload, original_payload)
+        session, created = await service.ingest(payload, original_payload)
         if created:
             background_tasks.add_task(service.analyze_session, session["id"])
         response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
@@ -82,59 +84,59 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.post("/api/runs", dependencies=[Depends(require_device)], include_in_schema=False)(ingest)
 
     @app.get("/api/v1/users")
-    def users() -> list[dict]:
-        return service.list_users()
+    async def users() -> list[dict]:
+        return await service.list_users()
 
     @app.post("/api/v1/users/resolve")
-    def resolve_user(request: UserResolve, response: Response) -> dict:
-        user, created = service.resolve_user(request)
+    async def resolve_user(request: UserResolve, response: Response) -> dict:
+        user, created = await service.resolve_user(request)
         response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return {"created": created, "user": user}
 
     @app.get("/api/v1/users/{user_id}")
-    def user(user_id: int) -> dict:
-        return service.get_user(user_id)
+    async def user(user_id: int) -> dict:
+        return await service.get_user(user_id)
 
     @app.patch("/api/v1/users/{user_id}")
-    def update_user(user_id: int, update: UserUpdate) -> dict:
-        return service.update_user(user_id, update)
+    async def update_user(user_id: int, update: UserUpdate) -> dict:
+        return await service.update_user(user_id, update)
 
     @app.get("/api/v1/users/{user_id}/sessions")
-    def sessions(
+    async def sessions(
         user_id: int,
         limit: int = Query(default=100, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
     ) -> list[dict]:
-        return service.list_sessions(user_id, limit, offset)
+        return await service.list_sessions(user_id, limit, offset)
 
     @app.get("/api/v1/users/{user_id}/sessions/latest")
-    def latest(user_id: int) -> dict:
-        return service.latest(user_id)
+    async def latest(user_id: int) -> dict:
+        return await service.latest(user_id)
 
     @app.get("/api/v1/users/{user_id}/trends")
-    def trends(user_id: int, limit: int = Query(default=50, ge=1, le=200)) -> dict:
-        return service.trends(user_id, limit)
+    async def trends(user_id: int, limit: int = Query(default=50, ge=1, le=200)) -> dict:
+        return await service.trends(user_id, limit)
 
     @app.get("/api/v1/users/{user_id}/comparisons/baseline")
-    def baseline_comparison(
+    async def baseline_comparison(
         user_id: int,
         current_device_id: str | None = None,
         current_session_id: str | None = None,
     ) -> dict:
-        return service.baseline_comparison(user_id, current_device_id, current_session_id)
+        return await service.baseline_comparison(user_id, current_device_id, current_session_id)
 
     @app.get("/api/v1/sessions/{device_id}/{session_id}")
-    def session(device_id: str, session_id: str) -> dict:
-        return service.get_session(device_id, session_id)
+    async def session(device_id: str, session_id: str) -> dict:
+        return await service.get_session(device_id, session_id)
 
     @app.get("/api/v1/comparisons")
-    def comparison(
+    async def comparison(
         reference_device_id: str,
         reference_session_id: str,
         current_device_id: str,
         current_session_id: str,
     ) -> dict:
-        return service.compare(
+        return await service.compare(
             reference_device_id,
             reference_session_id,
             current_device_id,
