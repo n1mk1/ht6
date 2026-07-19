@@ -1,0 +1,14 @@
+model = "Qwen/Qwen3.5-4B"
+algorithm = "sft"
+thinking = false
+
+[environment]
+id = "mlh/rehabtrace-freesolo"
+
+[train]
+epochs = 6
+max_examples = 91
+lora_rank = 16
+lora_alpha = 32
+batch_size = 4
+max_steps = 120

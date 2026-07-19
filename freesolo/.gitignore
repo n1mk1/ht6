@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.local
+.DS_Store
+*.log
+.flash/
+runs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+examples/regression_responses/
