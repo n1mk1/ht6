@@ -1,0 +1,194 @@
+/* Therapist Inbox — scoped under .inbox-* so it can't affect existing styles.
+   Reuses the dashboard's .card container class for visual consistency. */
+
+.inbox {
+  margin-top: 20px;
+}
+
+.inbox-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inbox-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a5a75;
+}
+
+.inbox-sub {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  color: #5a6577;
+}
+
+.inbox-empty {
+  color: #6a7688;
+  font-style: italic;
+}
+
+.inbox-error {
+  color: #8f1d1d;
+  background: #fdeaea;
+  border: 1px solid #d99;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inbox-card {
+  border: 1px solid #d3d9e3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.inbox-card-done {
+  opacity: 0.75;
+}
+
+.inbox-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.inbox-card-head:hover {
+  background: #f2f5fa;
+}
+
+.inbox-badge {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.inbox-badge-attention {
+  background: #fdeaea;
+  color: #8f1d1d;
+  border: 1px solid #e0a5a5;
+}
+
+.inbox-badge-review {
+  background: #fff4d6;
+  color: #6a4e00;
+  border: 1px solid #e3cd8a;
+}
+
+.inbox-badge-routine {
+  background: #e7f4e9;
+  color: #1e5c2a;
+  border: 1px solid #a9d3b1;
+}
+
+.inbox-participant {
+  font-weight: 700;
+}
+
+.inbox-time {
+  color: #6a7688;
+  font-size: 13px;
+}
+
+.inbox-status {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5a75;
+}
+
+.inbox-card-body {
+  padding: 4px 16px 16px;
+  border-top: 1px solid #e6eaf1;
+}
+
+.inbox-card-body h4 {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #56637a;
+}
+
+.inbox-log {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.inbox-deltas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.inbox-deltas th,
+.inbox-deltas td {
+  text-align: left;
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.inbox-note {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f7f8fa;
+  border: 1px solid #e6eaf1;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.inbox-mock {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #8a6d00;
+}
+
+.inbox-card-body textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid #7a8aa3;
+  border-radius: 8px;
+}
+
+.inbox-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.inbox-actions button.secondary {
+  background: #fff;
+  color: #1a3c6e;
+  border: 1px solid #1a3c6e;
+}
