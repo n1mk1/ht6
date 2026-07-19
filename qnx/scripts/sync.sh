@@ -10,6 +10,8 @@ rsync -az --delete \
   --exclude '*.pyc' \
   `# Pi-side generated artifacts — never clobber/delete on sync:` \
   --exclude 'rt_vision' --exclude 'sessions/' --exclude 'outbox/' \
+  --exclude 'datasets/image_quality/data/' \
+  --exclude 'models/' --exclude 'vendor/' \
   --exclude 'server.log' --exclude 'server.pid' \
   -e "ssh $SSH_OPTS" \
   "$HERE/" "$PI_USER@$PI_HOST:$PI_DIR/"

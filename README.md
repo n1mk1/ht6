@@ -1,103 +1,159 @@
-# LaunchKit
+# Praxis
 
-A production-shaped starter for a React + Tailwind frontend and a uv-managed FastAPI API with Auth0 authentication, MongoDB Atlas persistence, and the Gemini API.
+Praxis is a prototype for measuring performance on a camera- and IMU-assisted
+path-tracing task and reviewing changes across repeated sessions. A QNX device
+captures each run, the web API stores and compares compatible runs, and a React
+dashboard presents session history, measurements, trends, and model status.
 
-## What is included
+> Praxis reports task-performance measurements. It is not a diagnostic device,
+> and its scores and model outputs are not validated clinical conclusions.
 
-- React 19, TypeScript, Tailwind CSS 4, and the Auth0 React SDK
-- FastAPI with generated OpenAPI docs and CORS configured for the frontend
-- Auth0 bearer-token validation on protected API routes
-- Async MongoDB access with the official PyMongo `AsyncMongoClient`
-- Gemini text generation through the official `google-genai` SDK
-- Authenticated note CRUD and a protected Gemini playground
-- Backend unit/integration tests and a server-rendered frontend smoke test
+## Architecture
 
-## 1. Configure the services
-
-Create local environment files:
-
-```powershell
-Copy-Item .env.example .env
-Copy-Item backend/.env.example backend/.env
+```text
+QNX device (qnx/)
+  POST /api/v1/qnx/sessions, schema 3.0
+                  |
+                  v
+FastAPI + SQLite (backend/) ---- narrow HTTP adapter ----> FreeSOLO service
+                  |
+                  v
+React dashboard (frontend/)
 ```
 
-### Auth0
+The web application is isolated from both existing subsystems: it does not
+import, move, or write into `qnx/` or `freesolo/`. The backend preserves every
+accepted QNX payload unchanged in addition to storing normalized fields.
 
-1. Create an Auth0 **Single Page Application**.
-2. Add `http://localhost:3000` to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins.
-3. Create an Auth0 **API** using `https://launchkit-api` as its Identifier and RS256 as its signing algorithm.
-4. Put the SPA Domain and Client ID in the root `.env` file.
-5. Put the same Domain and API Identifier in `backend/.env`.
+| Directory | Purpose | Documentation |
+|---|---|---|
+| `qnx/` | QNX camera, IMU capture, deterministic scoring, and upload | [`qnx/README.md`](qnx/README.md) |
+| `freesolo/` | Frozen performance-comparison model contract and training assets | [`freesolo/README.md`](freesolo/README.md) |
+| `backend/` | Versioned ingestion and longitudinal REST API | [`backend/README.md`](backend/README.md) |
+| `frontend/` | Responsive participant session dashboard | [`frontend/README.md`](frontend/README.md) |
 
-The Auth0 domain should look like `your-tenant.us.auth0.com`; do not include `https://`.
+The web application design and integration boundaries are described in
+[`WEBAPP.md`](WEBAPP.md). The FreeSOLO documents retain the historical
+"RehabTrace" name because they describe the frozen model contract and dataset.
 
-### MongoDB Atlas
+## Current functionality
 
-1. Create a cluster, database user, and network access rule in Atlas.
-2. Choose **Connect > Drivers > Python** and copy the connection string.
-3. Set `MONGODB_URI` in `backend/.env`, replacing the username and password placeholders.
+- Captures a single post-task image containing a blue reference path and red
+  attempt, plus IMU data collected during the task.
+- Produces versioned deterministic accuracy and stability scores, timing,
+  coverage, movement measurements, quality warnings, trace points, and local
+  artifacts.
+- Accepts QNX schema `3.0` payloads idempotently by `(device_id, session_id)`.
+- Connects QNX and web sessions through the same case-insensitive username.
+- Shows latest results, history, run details, trends, compatible baseline
+  comparisons, and side-by-side comparisons.
+- Attempts FreeSOLO analysis only through the backend adapter and clearly stores
+  pending, unavailable, completed, or error status without inventing production
+  predictions.
 
-The `notes` collection is created by MongoDB on the first insert.
+## Quick start
 
-### Gemini
-
-Create an API key in Google AI Studio and set `GEMINI_API_KEY` in `backend/.env`. The default model is configurable through `GEMINI_MODEL`.
-
-## 2. Install and run
-
-From the repository root:
-
-```powershell
-npm install
-uv sync --project backend
-```
+Requirements: Python 3.11 or newer and Node.js 20 or newer.
 
 Start the API:
 
-```powershell
-uv run --project backend uvicorn --app-dir backend/src atlas_gemini_api.main:app --reload --port 8000
+```bash
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+cp .env.example .env
+.venv/bin/uvicorn praxis_api.main:app --reload --port 8000
 ```
 
-Start the frontend in a second terminal:
+In another terminal, start the dashboard:
 
-```powershell
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The FastAPI documentation is available at `http://localhost:8000/docs` outside production.
+Open `http://localhost:5173`. The API health endpoint is
+`http://localhost:8000/api/v1/health`, and interactive API documentation is at
+`http://localhost:8000/docs`.
 
-## 3. Verify
+The opening page asks for a username. Use exactly the username entered before a
+QNX run; matching ignores capitalization and surrounding spaces. A username is
+currently a record identifier, **not authentication**. Do not expose this
+prototype to sensitive or public use without adding real authentication and an
+appropriate privacy/security review.
 
-```powershell
-uv run --project backend ruff check backend
-uv run --project backend pytest
+## Connect the QNX device
+
+Deploy and open the device dashboard from the repository root:
+
+```bash
+cd qnx
+make deploy
+make dash
+```
+
+Set these variables in the QNX server environment before launch:
+
+```bash
+BACKEND_URL=http://<computer-lan-ip>:8000
+BACKEND_RUNS_PATH=/api/v1/qnx/sessions
+BACKEND_KEY=<optional-shared-device-key>
+```
+
+Use the backend computer's LAN address, not `localhost`, because the request
+originates on the Pi. When `BACKEND_KEY` is set, it must match
+`PRAXIS_DEVICE_KEY` in `backend/.env`. Failed uploads remain available in the
+QNX local outbox; they do not delete the completed run.
+
+## FreeSOLO status
+
+The real integration boundary is
+`backend/src/praxis_api/freesolo.py`. The current QNX payload does not contain
+all metrics required by FreeSOLO's frozen input contract, so normal ingestion
+currently records analysis as `unavailable`. It never substitutes a fake
+regression result. An explicit mock exists only for development and is rejected
+when `PRAXIS_ENVIRONMENT=production`.
+
+See [`WEBAPP.md`](WEBAPP.md) for the missing model fields and adapter behavior.
+
+## Verification
+
+Backend:
+
+```bash
+cd backend
+.venv/bin/pytest -q
+.venv/bin/ruff check .
+```
+
+Frontend:
+
+```bash
+cd frontend
 npm run lint
-npm test
+npm run test
+npm run build
 ```
 
-## API surface
+Existing subsystems:
 
-| Method | Route | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/api/health` | Public | Process and integration configuration status |
-| `GET` | `/api/ready` | Public | Atlas connectivity and service readiness |
-| `GET` | `/api/me` | Auth0 | Validated token identity |
-| `GET` | `/api/notes` | Auth0 | List the current user's notes |
-| `POST` | `/api/notes` | Auth0 | Create a note owned by the current user |
-| `DELETE` | `/api/notes/{id}` | Auth0 | Delete an owned note |
-| `POST` | `/api/ai/generate` | Auth0 | Generate text with Gemini |
-
-## Structure
-
-```text
-app/                              React/Tailwind frontend
-backend/
-  src/atlas_gemini_api/           FastAPI application package
-  tests/                          API tests with cloud services mocked
-  pyproject.toml                  uv project and tool configuration
-  uv.lock                         reproducible Python dependency lock
-.env.example                     browser-safe frontend configuration
-backend/.env.example             server-only configuration
+```bash
+python3 qnx/tests/test_praxis.py
+python3 freesolo/scripts/demo.py
+python3 freesolo/scripts/validate_dataset.py
 ```
 
-For production, deploy the FastAPI service to a Python host, set `NEXT_PUBLIC_API_URL` to its HTTPS URL before building the frontend, and allow the deployed frontend origin in both Auth0 and `FRONTEND_ORIGINS`.
+Backend contract tests use the real QNX schema `3.0` fixture at
+`backend/tests/fixtures/qnx_session_v3.json`.
+
+## Data and services
+
+The current local database is SQLite at `backend/data/praxis.db`; migrations run
+automatically at API startup. Auth0, MongoDB Atlas, and Gemini are possible
+future integrations but are **not implemented in this revision**. The README
+states the deployed code path rather than sponsor-service plans.
+
+Generated databases, virtual environments, dependency directories, build
+outputs, and local `.env` secrets are ignored by Git. Commit `.env.example`
+files only; never commit credentials or participant data.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RehabTrace control server — runs ON the QNX Pi. Stdlib only.
+"""Praxis control server — runs ON the QNX Pi. Stdlib only.
 
 Single-image model (no corner markers, no homography):
 
@@ -9,20 +9,27 @@ Single-image model (no corner markers, no homography):
   blue reference and the red trace; accuracy = per-vertical-slice pixel distance
   between the blue and red centroids; stability = IMU tremor during the run).
   Each run is tagged with the participant's username, saved locally, and (if
-  BACKEND_URL is set) POSTed to the webapp backend for MongoDB storage.
+  BACKEND_URL is set) POSTed to the isolated webapp ingestion API.
 
   GET  /                     dashboard
-  GET  /api/state            phase + captured black/red polylines (pixels)
+  GET  /api/state            phase + captured blue/red polylines (pixels)
   GET  /api/imu_live         latest gyro magnitude + sample count (during run)
   POST /api/session/new      {"username": "..."}
-  POST /api/preview          grab one frame -> preview.bmp (live view)
+  POST /api/preview          ensure persistent live-preview camera process
   POST /api/go               calibrate IMU bias, then start IMU recording + timer
   POST /api/stop             stop IMU recording + timer
-  POST /api/score            one photo -> vertical-slice black-vs-red scoring
+  POST /api/score            one photo -> vertical-slice blue-vs-red scoring
+
+  GET  /dataset              separate image-quality dataset capture UI
+  GET  /api/dataset/status   30-shot plan and persisted capture progress
+  POST /api/dataset/preview  dataset camera preview
+  POST /api/dataset/capture  {"shot_id": N} -> labeled full-resolution BMP
 """
+import csv
 import json
 import math
 import os
+import signal
 import shutil
 import subprocess
 import sys
@@ -36,9 +43,13 @@ BASE = os.path.expanduser("~/steadyeye")
 DASH = os.path.join(BASE, "dashboard")
 SESSIONS = os.path.join(BASE, "sessions")
 OUTBOX = os.path.join(BASE, "outbox")
+IMAGE_QUALITY_DATA = os.path.join(BASE, "datasets", "image_quality", "data")
+IMAGE_QUALITY_CAPTURES = os.path.join(IMAGE_QUALITY_DATA, "captures")
 RT_VISION = os.path.join(BASE, "vision", "rt_vision")
 IMU_PY = os.path.expanduser("~/venv/bin/python")
 IMU_REC = os.path.join(BASE, "imu", "imu_recorder.py")
+IMAGE_QUALITY_INFER = os.path.join(BASE, "image_quality", "infer.py")
+IMAGE_QUALITY_MODEL = os.path.join(BASE, "image_quality", "model", "quality_model.json")
 PORT = 8080
 
 # Deterministic Praxis scoring / percentile / explainability (single source of
@@ -51,7 +62,7 @@ from praxis import explain as praxis_explain    # noqa: E402
 # Canonical task identity — must match a reference-set stratum for percentiles.
 TASK = {"type": "path_tracing", "version": "mat_v1", "difficulty": 1}
 
-# Webapp backend (on a separate computer) that ingests runs into MongoDB.
+# Webapp backend (on a separate computer) that stores and compares runs.
 # Set BACKEND_URL to its base URL, e.g. http://192.168.1.50:8000 — the server
 # POSTs each finished run to BACKEND_URL + BACKEND_RUNS_PATH. If unset or
 # unreachable, the run is still saved locally to outbox/latest.json.
@@ -82,6 +93,123 @@ S = {
 LOCK = threading.Lock()
 CAM_LOCK = threading.Lock()   # only one rt_vision may hold the camera at a time
 PROCS = {}
+CAMERA = {"path": None}
+
+# A deliberately small, balanced dataset for a binary image-quality model.
+# Accurate and inaccurate traces are both valid: this model decides whether a
+# frame is usable by the deterministic scorer, not how well the trace was drawn.
+IMAGE_QUALITY_PLAN = [
+    {"id": 1, "label": "valid", "condition": "accurate",
+     "instruction": "Draw an accurate trace. Keep the full sheet clear and centered."},
+    {"id": 2, "label": "valid", "condition": "accurate",
+     "instruction": "Draw another accurate trace with the normal camera and lighting setup."},
+    {"id": 3, "label": "valid", "condition": "accurate",
+     "instruction": "Draw an accurate trace. Shift the sheet slightly left, but keep all of it visible."},
+    {"id": 4, "label": "valid", "condition": "accurate",
+     "instruction": "Draw an accurate trace. Shift the sheet slightly right, but keep all of it visible."},
+    {"id": 5, "label": "valid", "condition": "accurate",
+     "instruction": "Draw an accurate trace in normal light with the full sheet visible."},
+    {"id": 6, "label": "valid", "condition": "inaccurate",
+     "instruction": "Draw a clearly inaccurate trace. Keep the image sharp and correctly framed."},
+    {"id": 7, "label": "valid", "condition": "inaccurate",
+     "instruction": "Draw above the reference path. Keep the sheet clear and centered."},
+    {"id": 8, "label": "valid", "condition": "inaccurate",
+     "instruction": "Draw below the reference path. Keep the sheet clear and centered."},
+    {"id": 9, "label": "valid", "condition": "inaccurate",
+     "instruction": "Draw an uneven or shaky trace. Keep the final image sharp and unobstructed."},
+    {"id": 10, "label": "valid", "condition": "inaccurate",
+     "instruction": "Draw an incomplete-looking but visible trace. Keep the entire target in frame."},
+    {"id": 11, "label": "invalid", "condition": "blur",
+     "instruction": "Move the sheet left and right continuously while you press Capture."},
+    {"id": 12, "label": "invalid", "condition": "blur",
+     "instruction": "Move the sheet up and down continuously while you press Capture."},
+    {"id": 13, "label": "invalid", "condition": "blur",
+     "instruction": "Rotate the sheet back and forth continuously while you press Capture."},
+    {"id": 14, "label": "invalid", "condition": "blur",
+     "instruction": "Shake the sheet more gently while you press Capture to create mild blur."},
+    {"id": 15, "label": "invalid", "condition": "occlusion",
+     "instruction": "Cover the left quarter of the sheet with your hand."},
+    {"id": 16, "label": "invalid", "condition": "occlusion",
+     "instruction": "Cover the right quarter of the sheet with your hand."},
+    {"id": 17, "label": "invalid", "condition": "occlusion",
+     "instruction": "Cover the center of the trace with your hand or sleeve."},
+    {"id": 18, "label": "invalid", "condition": "occlusion",
+     "instruction": "Place the pen or another object across a large part of the trace."},
+    {"id": 19, "label": "invalid", "condition": "framing",
+     "instruction": "Move the sheet left until part of the target is outside the frame."},
+    {"id": 20, "label": "invalid", "condition": "framing",
+     "instruction": "Move the sheet right until part of the target is outside the frame."},
+    {"id": 21, "label": "invalid", "condition": "framing",
+     "instruction": "Move the sheet upward until part of the target is outside the frame."},
+    {"id": 22, "label": "invalid", "condition": "framing",
+     "instruction": "Rotate the sheet enough that a corner and part of the target leave the frame."},
+    {"id": 23, "label": "invalid", "condition": "lighting",
+     "instruction": "Make the scene substantially darker than normal, then capture."},
+    {"id": 24, "label": "invalid", "condition": "lighting",
+     "instruction": "Cast a strong shadow across the center of the sheet."},
+    {"id": 25, "label": "invalid", "condition": "lighting",
+     "instruction": "Aim a bright light at the left side to create glare or overexposure."},
+    {"id": 26, "label": "invalid", "condition": "lighting",
+     "instruction": "Aim a bright light at the right side to create glare or overexposure."},
+    {"id": 27, "label": "invalid", "condition": "wrong_scene",
+     "instruction": "Show a blank sheet with no reference path or trace."},
+    {"id": 28, "label": "invalid", "condition": "wrong_scene",
+     "instruction": "Remove the sheet so only the work surface is visible."},
+    {"id": 29, "label": "invalid", "condition": "wrong_scene",
+     "instruction": "Place a different page or unrelated object under the camera."},
+    {"id": 30, "label": "invalid", "condition": "wrong_scene",
+     "instruction": "Cover most of the camera view so the tracing target cannot be identified."},
+]
+
+
+def dataset_filename(shot):
+    condition = shot["condition"].replace("_", "-")
+    return f'{shot["id"]:03d}_{shot["label"]}_{condition}.bmp'
+
+
+def dataset_status():
+    plan = []
+    captured_count = 0
+    for shot in IMAGE_QUALITY_PLAN:
+        item = dict(shot)
+        item["filename"] = dataset_filename(shot)
+        path = os.path.join(IMAGE_QUALITY_CAPTURES, item["filename"])
+        item["captured"] = os.path.isfile(path)
+        if item["captured"]:
+            captured_count += 1
+            item["captured_at"] = datetime.fromtimestamp(
+                os.path.getmtime(path), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            item["captured_at"] = None
+        plan.append(item)
+    next_shot = next((item["id"] for item in plan if not item["captured"]), None)
+    return {"ok": True, "captured": captured_count, "total": len(plan),
+            "next_shot": next_shot, "plan": plan}
+
+
+def write_dataset_metadata():
+    status = dataset_status()
+    os.makedirs(IMAGE_QUALITY_DATA, exist_ok=True)
+    manifest_path = os.path.join(IMAGE_QUALITY_DATA, "manifest.json")
+    tmp_manifest = manifest_path + ".tmp"
+    with open(tmp_manifest, "w") as f:
+        json.dump({"schema_version": "1.0", "task": "image_quality_binary",
+                   "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                   "captured": status["captured"], "total": status["total"],
+                   "shots": status["plan"]}, f, indent=2)
+    os.replace(tmp_manifest, manifest_path)
+
+    labels_path = os.path.join(IMAGE_QUALITY_DATA, "labels.csv")
+    tmp_labels = labels_path + ".tmp"
+    with open(tmp_labels, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["filename", "label", "condition", "shot_id", "captured_at"])
+        for item in status["plan"]:
+            if item["captured"]:
+                writer.writerow(["captures/" + item["filename"], item["label"],
+                                 item["condition"], item["id"], item["captured_at"]])
+    os.replace(tmp_labels, labels_path)
+    return status
 
 
 def sdir():
@@ -229,8 +357,8 @@ def compute_metrics(d, t_go_ns, t_stop_ns):
             m["rms_dev_mm"] = round(rms_px / scale, 2)
         else:
             m["mean_dev_mm"] = m["max_dev_mm"] = m["rms_dev_mm"] = None
-            if scale is None:
-                warnings.append("no_scale_bar_mm_unavailable")
+            if not scale:
+                warnings.append("scale_calibration_unavailable")
         # keep the raw vertical-slice figure for reference/debugging
         m["slice_mean_dev_px"] = v.get("mean_dev_px")
         # canonical versioned accuracy score (spatial error + coverage, mm-based)
@@ -266,7 +394,7 @@ def compute_metrics(d, t_go_ns, t_stop_ns):
 
 
 def forward_to_backend(run):
-    """POST the finished run to the webapp backend (MongoDB ingest). Best-effort:
+    """POST the finished run to the webapp ingestion API. Best-effort:
     returns a small status dict, never raises — the run is always kept locally."""
     if not BACKEND_URL:
         return {"forwarded": False, "reason": "no_backend_url"}
@@ -284,7 +412,48 @@ def forward_to_backend(run):
 
 
 # ---------------------------------------------------------------- endpoints
+def stop_camera_preview_locked():
+    """Stop the persistent viewfinder. Caller must hold CAM_LOCK."""
+    p = PROCS.pop("camera", None)
+    if p and p.poll() is None:
+        p.terminate()
+        try:
+            p.wait(timeout=4)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait(timeout=2)
+    CAMERA["path"] = None
+
+
+def start_camera_preview_locked(path):
+    """Start one long-lived QNX viewfinder that atomically refreshes `path`."""
+    p = PROCS.get("camera")
+    if p and p.poll() is None and CAMERA["path"] == path:
+        return True
+    stop_camera_preview_locked()
+    for stale in (path, path + ".tmp"):
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+    p = subprocess.Popen([RT_VISION, "stream", "--out", path],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    PROCS["camera"] = p
+    CAMERA["path"] = path
+    deadline = time.monotonic() + 6
+    while time.monotonic() < deadline:
+        if os.path.isfile(path):
+            return True
+        if p.poll() is not None:
+            break
+        time.sleep(0.05)
+    stop_camera_preview_locked()
+    return False
+
+
 def api_new(body):
+    with CAM_LOCK:
+        stop_camera_preview_locked()
     sid = "session_" + datetime.now().strftime("%H%M%S")
     username = (body.get("username") or S.get("username") or "").strip()
     with LOCK:
@@ -300,10 +469,54 @@ def api_preview(_):
         api_new({})
     d = sdir()
     with CAM_LOCK:
-        code, out = run([RT_VISION, "preview", "--out", os.path.join(d, "preview.bmp")],
-                        timeout=20)
-    out["file"] = f"/sessions/{S['session_id']}/preview.bmp"
+        path = os.path.join(d, "preview.bmp")
+        ok = start_camera_preview_locked(path)
+    return {"ok": ok, "streaming": ok,
+            "file": f"/sessions/{S['session_id']}/preview.bmp",
+            "refresh_ms": 160,
+            "error": None if ok else "camera_stream_unavailable"}
+
+
+def api_dataset_preview(_):
+    os.makedirs(IMAGE_QUALITY_DATA, exist_ok=True)
+    path = os.path.join(IMAGE_QUALITY_DATA, "preview.bmp")
+    with CAM_LOCK:
+        stop_camera_preview_locked()
+        code, out = run([RT_VISION, "preview", "--out", path], timeout=20)
+    out["file"] = "/dataset-images/preview.bmp"
     return out
+
+
+def api_dataset_capture(body):
+    try:
+        shot_id = int(body.get("shot_id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "invalid_shot_id"}
+    shot = next((item for item in IMAGE_QUALITY_PLAN if item["id"] == shot_id), None)
+    if shot is None:
+        return {"ok": False, "error": "unknown_shot_id"}
+
+    os.makedirs(IMAGE_QUALITY_CAPTURES, exist_ok=True)
+    filename = dataset_filename(shot)
+    final_path = os.path.join(IMAGE_QUALITY_CAPTURES, filename)
+    temp_path = final_path + ".tmp"
+    with CAM_LOCK:
+        stop_camera_preview_locked()
+        code, out = run([RT_VISION, "capture", "--out", temp_path], timeout=25)
+    if code != 0 or not out.get("ok") or not os.path.isfile(temp_path):
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+        return {"ok": False, "error": out.get("error", "capture_failed"),
+                "detail": out}
+
+    os.replace(temp_path, final_path)
+    status = write_dataset_metadata()
+    return {"ok": True, "shot_id": shot_id, "filename": filename,
+            "file": "/dataset-images/captures/" + filename,
+            "captured": status["captured"], "total": status["total"],
+            "next_shot": status["next_shot"]}
 
 
 def api_go(body):
@@ -352,10 +565,11 @@ def api_stop(_):
 
 def api_score(_):
     """After the pen is lifted: ONE photo -> vertical-slice blue-vs-red score,
-    then persist the run and forward it to the webapp backend (MongoDB)."""
+    then persist the run and forward it to the webapp ingestion API."""
     d = sdir()
     t_stop = S["t_stop"] or time.monotonic_ns()
     with CAM_LOCK:
+        stop_camera_preview_locked()
         # No per-run scale detection — px->mm is the fixed SCALE_PX_PER_MM.
         code, vis = run([RT_VISION, "score", "--out", os.path.join(d, "score.json"),
                          "--endbmp", os.path.join(d, "end.bmp"),
@@ -367,6 +581,21 @@ def api_score(_):
     if not vis.get("ok"):
         quality["warnings"].append("capture_" + str(vis.get("error", "failed")))
 
+    # The learned quality gate is isolated from acquisition and deterministic
+    # scoring. Failure or timeout adds a warning but never removes raw results.
+    end_image = os.path.join(d, "end.bmp")
+    if os.path.isfile(end_image) and os.path.isfile(IMAGE_QUALITY_MODEL):
+        iq_code, image_quality = run(
+            [IMU_PY, IMAGE_QUALITY_INFER, "--model", IMAGE_QUALITY_MODEL,
+             "--image", end_image], timeout=12)
+    else:
+        image_quality = {"ok": False, "error": "model_or_image_unavailable"}
+    quality["image_quality"] = image_quality
+    if not image_quality.get("ok"):
+        quality["warnings"].append("ai_image_quality_unavailable")
+    elif image_quality.get("classification") != "valid":
+        quality["warnings"].append("ai_image_quality_repeat_recommended")
+
     # --- deterministic scoring -> banding -> stratification (in this order) ---
     acc = metrics.get("accuracy_score")
     stab = metrics.get("stability_score")
@@ -377,7 +606,7 @@ def api_score(_):
     # --- explainability LAST, over a validated structured object ---
     explainer_input = praxis_explain.build_input(
         TASK, {"accuracy": acc, "stability": stab}, bands, percentiles,
-        metrics, quality.get("warnings"))
+        metrics, quality.get("warnings"), image_quality)
     explanation = praxis_explain.explain(explainer_input)
 
     v = load_json(os.path.join(d, "score.json")) or {}
@@ -405,8 +634,7 @@ def api_score(_):
         # detected polylines (image pixels) so the webapp can redraw the overlay
         "trace": {"frame": v.get("frame"),
                   "reference": v.get("reference", []),
-                  "red": v.get("red", []),
-                  "scale_bar": v.get("scale_bar")},
+                  "red": v.get("red", [])},
         # pointers to the raw artifacts saved alongside for the web app bundle
         "artifacts": {"imu_jsonl": "imu.jsonl", "imu_bias": "imu_bias.json",
                       "vision_score": "score.json", "end_image": "end.bmp",
@@ -429,6 +657,8 @@ ROUTES = {
     "/api/go": api_go,
     "/api/stop": api_stop,
     "/api/score": api_score,
+    "/api/dataset/preview": api_dataset_preview,
+    "/api/dataset/capture": api_dataset_capture,
 }
 
 
@@ -483,6 +713,10 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path in ("/", "/index.html"):
             return self._file(os.path.join(DASH, "index.html"), "text/html")
+        if path in ("/dataset", "/dataset.html"):
+            return self._file(os.path.join(DASH, "dataset.html"), "text/html")
+        if path == "/api/dataset/status":
+            return self._json(dataset_status())
         if path == "/api/state":
             with LOCK:
                 st = {k: S[k] for k in ("phase", "session_id", "username",
@@ -492,7 +726,6 @@ class Handler(BaseHTTPRequestHandler):
                 st["reference"] = v.get("reference", [])
                 st["red"] = v.get("red", [])
                 st["frame"] = v.get("frame")
-                st["scale_bar"] = v.get("scale_bar")
             return self._json(st)
         if path == "/api/imu_live":
             return self._json(tail_imu_live(sdir() or ""))
@@ -500,6 +733,14 @@ class Handler(BaseHTTPRequestHandler):
             fp = os.path.join(BASE, path.lstrip("/"))
             ctype = "image/bmp" if fp.endswith(".bmp") else "application/json"
             return self._file(fp, ctype)
+        if path.startswith("/dataset-images/"):
+            relative = path[len("/dataset-images/"):]
+            if relative not in ("preview.bmp",) and not any(
+                    relative == "captures/" + dataset_filename(shot)
+                    for shot in IMAGE_QUALITY_PLAN):
+                return self.send_error(404)
+            fp = os.path.join(IMAGE_QUALITY_DATA, relative)
+            return self._file(fp, "image/bmp")
         if path == "/outbox/latest.json":
             return self._file(os.path.join(OUTBOX, "latest.json"), "application/json")
         self.send_error(404)
@@ -523,10 +764,24 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": str(e)}, 500)
 
 
+def shutdown(_signum=None, _frame=None):
+    with CAM_LOCK:
+        stop_camera_preview_locked()
+    raise SystemExit(0)
+
+
 if __name__ == "__main__":
     os.makedirs(SESSIONS, exist_ok=True)
     os.makedirs(OUTBOX, exist_ok=True)
+    os.makedirs(IMAGE_QUALITY_CAPTURES, exist_ok=True)
+    write_dataset_metadata()
     with open(os.path.join(BASE, "server.pid"), "w") as f:
         f.write(str(os.getpid()))
-    print(f"RehabTrace server on :{PORT} (base {BASE})", flush=True)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+    print(f"Praxis server on :{PORT} (base {BASE})", flush=True)
+    try:
+        ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    finally:
+        with CAM_LOCK:
+            stop_camera_preview_locked()

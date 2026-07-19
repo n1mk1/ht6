@@ -13,7 +13,7 @@
   h1 { font-size:20px; } .sub { color:var(--dim); font-size:13px; margin-bottom:18px; }
   .grid { display:grid; grid-template-columns:360px 1fr; gap:16px; max-width:1150px; }
   .card { background:var(--card); border:1px solid var(--line);
-          border-radius:10px; padding:16px; }
+          border-radius:8px; padding:16px; }
   h2 { font-size:14px; color:var(--dim); font-weight:600; margin-bottom:10px;
        text-transform:uppercase; letter-spacing:.04em; }
   .controls { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 4px; }
@@ -32,7 +32,16 @@
   .timer { font:600 34px ui-monospace,monospace; }
   .gauge { font:600 20px ui-monospace,monospace; color:var(--acc); }
   .gauge small { color:var(--dim); font-size:12px; font-weight:400; }
-  img.cam, canvas.result { width:100%; background:#000; border-radius:8px; display:block; }
+  .camera-frame { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
+                  background:#000; border:1px solid var(--line); border-radius:8px; }
+  img.cam { width:100%; height:100%; object-fit:cover; display:block; }
+  canvas.result { width:100%; background:#000; border-radius:8px; display:block; }
+  .live-badge { position:absolute; top:9px; left:9px; display:flex; align-items:center;
+                gap:6px; padding:4px 8px; border-radius:999px; background:rgba(14,17,23,.84);
+                color:var(--dim); font-size:11px; font-weight:700; }
+  .live-badge i { width:7px; height:7px; border-radius:50%; background:var(--dim); }
+  .live-badge.live { color:#fff; }
+  .live-badge.live i { background:var(--bad); box-shadow:0 0 0 3px rgba(255,107,107,.18); }
   .scores { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
   .score { background:var(--bg); border:1px solid var(--line); border-radius:10px;
            padding:14px; text-align:center; }
@@ -47,9 +56,21 @@
   .pctl { margin-top:6px; font-size:11px; color:var(--dim); }
   .explain { margin-top:14px; background:var(--bg); border:1px solid var(--line);
              border-radius:10px; padding:14px; }
-  .explain-h { font-size:12px; color:var(--dim); text-transform:uppercase;
-               letter-spacing:.04em; margin-bottom:6px; }
-  .explain-h span { text-transform:none; letter-spacing:0; }
+  .quality { display:none; margin-bottom:12px; padding:11px 13px; border:1px solid var(--line);
+             border-radius:8px; font-size:13px; }
+  .quality.valid { display:block; color:var(--ok); border-color:rgba(62,207,142,.5); }
+  .quality.invalid { display:block; color:var(--bad); border-color:rgba(255,107,107,.5); }
+  .quality.unavailable { display:block; color:var(--dim); }
+  .quality-head, .explain-h { display:flex; align-items:center; justify-content:space-between;
+                              gap:12px; }
+  .quality-head strong { font-size:14px; color:var(--tx); }
+  .quality-head span { flex:none; font:600 13px ui-monospace,monospace; }
+  .quality-meter { height:4px; margin:9px 0 7px; overflow:hidden; background:var(--line); }
+  .quality-meter span { display:block; height:100%; width:0; background:currentColor; }
+  .quality-detail { color:var(--dim); font-size:12px; }
+  .explain-h { font-size:12px; color:var(--dim); margin-bottom:7px; }
+  .ai-source { color:var(--dim); text-align:right; }
+  .ai-source.llama { color:var(--ok); }
   #explainText { font-size:14px; line-height:1.55; }
   .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
   .metric { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; }
@@ -71,7 +92,10 @@
       <input id="uname" placeholder="enter participant username" autocomplete="off"
              oninput="onUname()">
     </div>
-    <img class="cam" id="cam" alt="camera view" width="360" height="203">
+    <div class="camera-frame">
+      <img class="cam" id="cam" alt="Live QNX camera view" width="480" height="270">
+      <div class="live-badge" id="liveBadge"><i></i><span>CONNECTING</span></div>
+    </div>
     <div class="controls">
       <button class="go" onclick="startRun()" id="bstart" disabled>Start</button>
       <button class="stop" onclick="stopRun()" id="bstop" disabled>Stop</button>
@@ -87,6 +111,11 @@
 
   <div class="card">
     <h2>Result</h2>
+    <div class="quality" id="imageQuality" role="status">
+      <div class="quality-head"><strong id="qualityTitle"></strong><span id="qualityConfidence"></span></div>
+      <div class="quality-meter"><span id="qualityFill"></span></div>
+      <div class="quality-detail" id="qualityDetail"></div>
+    </div>
     <div class="scores" id="scores" style="display:none">
       <div class="score"><b id="sAcc">—</b><span>accuracy</span>
         <div class="band unknown" id="bAcc">—</div>
@@ -102,7 +131,7 @@
     </div>
     <div class="metrics" id="metrics" style="display:none"></div>
     <div class="explain" id="explain" style="display:none">
-      <div class="explain-h">Session summary <span id="explainSrc"></span></div>
+      <div class="explain-h"><strong>On-device session analysis</strong><span class="ai-source" id="explainSrc"></span></div>
       <div id="explainText"></div>
     </div>
   </div>
@@ -113,6 +142,7 @@ const $ = id => document.getElementById(id);
 let sid = null, phase = "idle";
 let t_go = null, timerIv = null, liveIv = null;
 let previewOn = true;
+let previewStreaming = false;
 
 function msg(t, cls) { $("msg").innerHTML = `<span class="${cls||''}">${t}</span>`; }
 
@@ -123,29 +153,46 @@ async function api(path, body) {
   return r.json();
 }
 
-// ---- live camera preview: poll a fresh still ~1/1.3s while enabled ----
+function cameraState(label, live=false) {
+  $("liveBadge").className = "live-badge" + (live ? " live" : "");
+  $("liveBadge").querySelector("span").textContent = label;
+}
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// The QNX process holds one viewfinder open and refreshes preview.bmp. The UI
+// only reloads that file, avoiding repeated camera-open cycles.
 async function previewLoop() {
   while (true) {
     if (previewOn && sid) {
       try {
-        const r = await api("/api/preview", {});
-        if (r && r.ok) {
-          await new Promise(res => {
-            const im = new Image();
-            im.onload = im.onerror = res;
-            im.src = r.file + "?t=" + Date.now();
-            $("cam").src = im.src;
-          });
+        if (!previewStreaming) {
+          cameraState("CONNECTING");
+          const r = await api("/api/preview", {});
+          if (!r || !r.ok) throw new Error("camera unavailable");
+          previewStreaming = true;
+          cameraState("LIVE", true);
         }
-      } catch (e) { /* keep looping */ }
+        await new Promise(resolve => {
+          const im = new Image();
+          im.onload = () => { $("cam").src = im.src; resolve(); };
+          im.onerror = resolve;
+          im.src = `/sessions/${sid}/preview.bmp?t=${Date.now()}`;
+        });
+      } catch (e) {
+        previewStreaming = false;
+        cameraState("RETRYING");
+        await sleep(1000);
+      }
     }
-    await new Promise(res => setTimeout(res, 300));
+    await sleep(previewOn ? 160 : 300);
   }
 }
 
 async function newSession(username) {
   const r = await api("/api/session/new", {username: username || ""});
   sid = r.session_id;
+  previewStreaming = false;
 }
 
 function uname() { return $("uname").value.trim(); }
@@ -167,7 +214,7 @@ async function startRun() {
   phase = "recording"; t_go = Date.now();
   $("bstop").disabled = false;
   $("scores").style.display = "none"; $("metrics").style.display = "none";
-  msg(`Recording — trace the black pattern in red. (bias noise ${r.noise_dps}°/s)`, "ok");
+  msg(`Recording — trace the blue pattern in red. (bias noise ${r.noise_dps}°/s)`, "ok");
   timerIv = setInterval(() => $("timer").textContent = ((Date.now()-t_go)/1000).toFixed(1)+"s", 100);
   liveIv = setInterval(async () => {
     const l = await fetch("/api/imu_live").then(x=>x.json());
@@ -187,12 +234,15 @@ async function stopRun() {
 
 async function scoreRun() {
   $("bscore").disabled = true;
-  previewOn = false;                       // free the camera for the score shot
-  msg("Taking photo &amp; scoring…");
+  previewOn = false;
+  previewStreaming = false;
+  cameraState("CAPTURING");
+  msg("Capturing, validating image on-device, and generating QNX AI analysis…");
   const r = await api("/api/score", {});
-  if (!r.ok) { $("bscore").disabled = false; previewOn = true;
+  if (!r.ok) { $("bscore").disabled = false; previewOn = true; previewStreaming = false;
                return msg("Scoring failed: " + (r.error||""), "bad"); }
   phase = "complete";
+  cameraState("CAPTURED");
   renderResult(r.session);
   const st = await api("/api/state");
   drawOverlay(st);
@@ -212,6 +262,8 @@ async function resetRun() {
   $("timer").textContent = "0.0s"; $("gauge").innerHTML = "— <small>°/s</small>";
   $("scores").style.display = "none"; $("metrics").style.display = "none";
   $("explain").style.display = "none";
+  $("imageQuality").className = "quality";
+  cameraState("CONNECTING");
   clearCanvas();
   msg("Live camera view. Press Start to begin.");
 }
@@ -231,6 +283,26 @@ function setPctl(id, meas) {
 }
 function renderResult(s) {
   const m = s.metrics, q = s.quality;
+  const iq = q && q.image_quality;
+  if (iq && iq.ok) {
+    const pct = Math.round(iq.valid_probability * 100);
+    if (iq.classification === "valid") {
+      $("imageQuality").className = "quality valid";
+      $("qualityTitle").textContent = "Capture accepted by on-device vision model";
+    } else {
+      $("imageQuality").className = "quality invalid";
+      $("qualityTitle").textContent = "Repeat capture recommended";
+    }
+    $("qualityConfidence").textContent = `${pct}% valid`;
+    $("qualityFill").style.width = `${Math.max(2, pct)}%`;
+    $("qualityDetail").textContent = `${iq.model_version} · ${fmt(iq.inference_ms)}ms · QNX CPU`;
+  } else {
+    $("imageQuality").className = "quality unavailable";
+    $("qualityTitle").textContent = "Image-quality model unavailable";
+    $("qualityConfidence").textContent = "fallback";
+    $("qualityFill").style.width = "0";
+    $("qualityDetail").textContent = "Deterministic accuracy and stability scores are preserved.";
+  }
   $("scores").style.display = "grid";
   $("sAcc").textContent = fmt(s.scores.accuracy);
   $("sStab").textContent = fmt(s.scores.stability);
@@ -241,13 +313,17 @@ function renderResult(s) {
   if (s.explanation && s.explanation.summary) {
     $("explain").style.display = "block";
     $("explainText").textContent = s.explanation.summary;
-    $("explainSrc").textContent = "· " + s.explanation.source;
+    const llama = s.explanation.source === "llama.cpp";
+    $("explainSrc").className = "ai-source" + (llama ? " llama" : "");
+    const runtime = llama ? `QNX llama.cpp · ${fmt(s.explanation.inference_ms)}ms`
+                          : "deterministic fallback";
+    $("explainSrc").textContent = runtime + (s.explanation.validated ? " · fact-validated" : "");
   }
-  // Show deviations in mm when a scale bar was detected, else px.
+  // Show deviations in mm from the fixed rig calibration, else px.
   const hasMM = m.mean_dev_mm != null;
   const meanDev = hasMM ? `${fmt(m.mean_dev_mm)}mm` : `${fmt(m.mean_dev_px)}px`;
   const maxDev  = hasMM ? `${fmt(m.max_dev_mm)}mm`  : `${fmt(m.max_dev_px)}px`;
-  const scaleLbl = hasMM ? `${fmt(m.scale_px_per_mm)}px/mm` : "no scale bar";
+  const scaleLbl = m.scale_px_per_mm == null ? "not set" : `${fmt(m.scale_px_per_mm)}px/mm`;
   $("metrics").style.display = "grid";
   $("metrics").innerHTML = `
     <div class="metric"><b>${meanDev}</b><span>mean deviation</span></div>
@@ -279,7 +355,6 @@ function drawOverlay(st) {
     try { rx.drawImage(im, 0, 0, rc.width, rc.height); } catch(e) {}
     drawPoly(st.reference, "#4da3ff", sx, sy);
     drawPoly(st.red, "#ff6b6b", sx, sy);
-    if (st.scale_bar) drawPoly(st.scale_bar, "#b060ff", sx, sy);
   };
   im.src = `/sessions/${sid}/end.bmp?t=` + Date.now();
 }

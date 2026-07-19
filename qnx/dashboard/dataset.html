@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Praxis Image Dataset</title>
+<style>
+  :root {
+    --bg:#0e1117; --panel:#171c26; --line:#2a3140; --text:#e6e9ef;
+    --muted:#929aaa; --blue:#4da3ff; --green:#3ecf8e; --red:#ff6b6b;
+    --amber:#ffbe50;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { border-bottom:1px solid var(--line); }
+  .header-inner { max-width:1160px; margin:0 auto; padding:16px 20px;
+                  display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand { font-size:18px; font-weight:700; }
+  .brand span { color:var(--muted); font-weight:500; margin-left:8px; }
+  a { color:var(--blue); text-decoration:none; }
+  main { max-width:1160px; margin:0 auto; padding:20px; }
+  .progress-row { display:flex; justify-content:space-between; align-items:baseline;
+                  gap:16px; margin-bottom:8px; }
+  .progress-row strong { font-size:14px; }
+  .progress-row span { color:var(--muted); font-size:13px; }
+  .progress-track { width:100%; height:8px; background:var(--line); overflow:hidden;
+                    margin-bottom:20px; }
+  .progress-fill { height:100%; width:0; background:var(--green); transition:width .2s ease; }
+  .workspace { display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr);
+               gap:18px; align-items:start; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+  .instruction { padding:20px; min-height:390px; display:flex; flex-direction:column; }
+  .shot-meta { display:flex; align-items:center; justify-content:space-between; gap:12px;
+               margin-bottom:22px; }
+  .shot-number { color:var(--muted); font-size:13px; }
+  .label { display:inline-flex; align-items:center; height:26px; padding:0 9px;
+           border:1px solid; border-radius:4px; font-size:12px; font-weight:700;
+           text-transform:uppercase; }
+  .label.valid { color:var(--green); border-color:var(--green); }
+  .label.invalid { color:var(--red); border-color:var(--red); }
+  .condition { color:var(--amber); font-size:13px; font-weight:700;
+               text-transform:uppercase; margin-bottom:7px; }
+  h1 { font-size:24px; line-height:1.25; letter-spacing:0; margin:0 0 14px; }
+  .filename { color:var(--muted); font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+              overflow-wrap:anywhere; }
+  .actions { margin-top:auto; padding-top:26px; }
+  button { border:0; border-radius:6px; min-height:44px; padding:0 16px; cursor:pointer;
+           font:600 15px -apple-system,"Segoe UI",Roboto,sans-serif; }
+  button:disabled { cursor:default; opacity:.45; }
+  .capture { width:100%; background:var(--blue); color:#07111f; }
+  .nav-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  .secondary { background:transparent; color:var(--text); border:1px solid var(--line); }
+  .message { min-height:22px; margin-top:12px; color:var(--muted); font-size:13px; }
+  .message.error { color:var(--red); }
+  .message.success { color:var(--green); }
+  .camera-panel { overflow:hidden; }
+  .camera-head { min-height:48px; padding:0 14px; display:flex; align-items:center;
+                 justify-content:space-between; border-bottom:1px solid var(--line); }
+  .camera-head strong { font-size:13px; text-transform:uppercase; }
+  .camera-tools { display:flex; align-items:center; gap:12px; }
+  .live-state { color:var(--muted); font-size:12px; }
+  .live-state::before { content:""; display:inline-block; width:7px; height:7px;
+                        border-radius:50%; background:var(--green); margin-right:6px; }
+  .live-state.unavailable::before { background:var(--red); }
+  .preview-button { min-height:30px; padding:0 10px; background:transparent;
+                    border:1px solid var(--line); color:var(--text); font-size:12px; }
+  .camera-wrap { background:#000; aspect-ratio:16 / 9; display:flex; align-items:center;
+                 justify-content:center; overflow:hidden; }
+  #camera { display:block; width:100%; height:100%; object-fit:contain; }
+  .shot-list { margin-top:18px; padding:16px; }
+  .shot-list-head { display:flex; justify-content:space-between; align-items:center;
+                    margin-bottom:12px; }
+  .shot-list-head strong { font-size:13px; text-transform:uppercase; }
+  .shot-grid { display:grid; grid-template-columns:repeat(10, 1fr); gap:7px; }
+  .shot-cell { min-width:0; height:34px; padding:0; background:var(--bg); color:var(--muted);
+               border:1px solid var(--line); font-size:12px; }
+  .shot-cell.current { border-color:var(--blue); color:var(--blue); }
+  .shot-cell.captured { background:rgba(62,207,142,.12); border-color:var(--green);
+                        color:var(--green); }
+  .shot-cell.current.captured { box-shadow:inset 0 0 0 1px var(--blue); }
+  @media (max-width:780px) {
+    .workspace { grid-template-columns:1fr; }
+    .instruction { min-height:340px; }
+    .shot-grid { grid-template-columns:repeat(6, 1fr); }
+    .brand span { display:block; margin-left:0; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="brand">Praxis <span>Image-quality dataset</span></div>
+    <a href="/">Return to scoring</a>
+  </div>
+</header>
+
+<main>
+  <div class="progress-row">
+    <strong id="progressTitle">Loading capture plan...</strong>
+    <span id="progressCount">0 / 0</span>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="workspace">
+    <section class="panel instruction">
+      <div class="shot-meta">
+        <span class="shot-number" id="shotNumber">Shot</span>
+        <span class="label" id="shotLabel">Label</span>
+      </div>
+      <div class="condition" id="condition"></div>
+      <h1 id="instruction">Waiting for the camera...</h1>
+      <div class="filename" id="filename"></div>
+      <div class="actions">
+        <button class="capture" id="captureButton" disabled>Capture image</button>
+        <div class="nav-actions">
+          <button class="secondary" id="previousButton" disabled>Previous</button>
+          <button class="secondary" id="nextButton" disabled>Next</button>
+        </div>
+        <div class="message" id="message" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel camera-panel">
+      <div class="camera-head">
+        <strong>Camera</strong>
+        <div class="camera-tools">
+          <span class="live-state" id="liveState">Preview</span>
+          <button class="preview-button" id="refreshButton">Refresh</button>
+        </div>
+      </div>
+      <div class="camera-wrap">
+        <img id="camera" alt="QNX camera preview">
+      </div>
+    </section>
+  </div>
+
+  <section class="panel shot-list">
+    <div class="shot-list-head">
+      <strong>Capture plan</strong>
+      <span class="shot-number">Select any number to review or retake it</span>
+    </div>
+    <div class="shot-grid" id="shotGrid"></div>
+  </section>
+</main>
+
+<script>
+const byId = id => document.getElementById(id);
+let plan = [];
+let currentIndex = 0;
+let requestInFlight = false;
+
+async function api(path, body) {
+  const options = body === undefined ? undefined : {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  };
+  const response = await fetch(path, options);
+  return response.json();
+}
+
+function setMessage(text, kind) {
+  const element = byId("message");
+  element.textContent = text || "";
+  element.className = "message" + (kind ? " " + kind : "");
+}
+
+function currentShot() {
+  return plan[currentIndex];
+}
+
+function render() {
+  if (!plan.length) return;
+  const shot = currentShot();
+  const captured = plan.filter(item => item.captured).length;
+  byId("progressTitle").textContent = captured === plan.length
+    ? "Dataset capture complete" : "Build the image-quality dataset";
+  byId("progressCount").textContent = captured + " / " + plan.length;
+  byId("progressFill").style.width = (captured / plan.length * 100) + "%";
+  byId("shotNumber").textContent = "Shot " + shot.id + " of " + plan.length;
+  byId("shotLabel").textContent = shot.label;
+  byId("shotLabel").className = "label " + shot.label;
+  byId("condition").textContent = shot.condition.replace("_", " ");
+  byId("instruction").textContent = shot.instruction;
+  byId("filename").textContent = shot.filename;
+  byId("captureButton").textContent = shot.captured ? "Retake image" : "Capture image";
+  byId("captureButton").disabled = requestInFlight;
+  byId("refreshButton").disabled = requestInFlight;
+  byId("previousButton").disabled = requestInFlight || currentIndex === 0;
+  byId("nextButton").disabled = requestInFlight || currentIndex === plan.length - 1;
+
+  const grid = byId("shotGrid");
+  grid.innerHTML = "";
+  plan.forEach((item, index) => {
+    const button = document.createElement("button");
+    button.className = "shot-cell" + (item.captured ? " captured" : "")
+      + (index === currentIndex ? " current" : "");
+    button.textContent = item.id;
+    button.title = item.condition.replace("_", " ") + (item.captured ? " - captured" : " - pending");
+    button.onclick = () => { currentIndex = index; setMessage(""); render(); };
+    grid.appendChild(button);
+  });
+}
+
+async function loadStatus(selectNext) {
+  const status = await api("/api/dataset/status");
+  plan = status.plan || [];
+  if (selectNext && status.next_shot != null) {
+    currentIndex = Math.max(0, plan.findIndex(item => item.id === status.next_shot));
+  } else if (currentIndex >= plan.length) {
+    currentIndex = Math.max(0, plan.length - 1);
+  }
+  render();
+}
+
+async function refreshPreview() {
+  if (requestInFlight) return;
+  requestInFlight = true;
+  byId("liveState").textContent = "Refreshing...";
+  byId("liveState").className = "live-state";
+  render();
+  try {
+    const result = await api("/api/dataset/preview", {});
+    if (!result.ok) throw new Error(result.error || result.raw || "camera unavailable");
+    byId("camera").src = result.file + "?t=" + Date.now();
+    byId("liveState").textContent = "Preview ready";
+  } catch (error) {
+    byId("liveState").textContent = "Camera unavailable";
+    byId("liveState").className = "live-state unavailable";
+    setMessage("Camera unavailable. Power-cycle the QNX Pi, then refresh this page.", "error");
+  } finally {
+    requestInFlight = false;
+    render();
+  }
+}
+
+async function captureCurrent() {
+  const shot = currentShot();
+  if (!shot || requestInFlight) return;
+  requestInFlight = true;
+  setMessage("Capturing full-resolution image...");
+  render();
+  try {
+    const result = await api("/api/dataset/capture", {shot_id: shot.id});
+    if (!result.ok) throw new Error(result.error || "capture failed");
+    byId("camera").src = result.file + "?t=" + Date.now();
+    byId("liveState").textContent = "Shot " + shot.id + " captured";
+    byId("liveState").className = "live-state";
+    await loadStatus(false);
+    setMessage("Shot " + shot.id + " saved.", "success");
+    const nextMissing = plan.findIndex((item, index) => index > currentIndex && !item.captured);
+    const anyMissing = plan.findIndex(item => !item.captured);
+    const destination = nextMissing >= 0 ? nextMissing : anyMissing;
+    if (destination >= 0) {
+      await new Promise(resolve => setTimeout(resolve, 650));
+      currentIndex = destination;
+      setMessage("");
+    }
+  } catch (error) {
+    setMessage("Capture failed: " + error.message, "error");
+  } finally {
+    requestInFlight = false;
+    render();
+  }
+}
+
+byId("captureButton").onclick = captureCurrent;
+byId("refreshButton").onclick = refreshPreview;
+byId("previousButton").onclick = () => {
+  if (currentIndex > 0) currentIndex -= 1;
+  setMessage("");
+  render();
+};
+byId("nextButton").onclick = () => {
+  if (currentIndex < plan.length - 1) currentIndex += 1;
+  setMessage("");
+  render();
+};
+
+loadStatus(true).then(refreshPreview).catch(error => {
+  setMessage("Could not load capture plan: " + error.message, "error");
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MPU6050 recorder for RehabTrace.
+"""MPU6050 recorder for Praxis.
 
 Modes:
   calibrate --out bias.json [--seconds 2]

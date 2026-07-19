@@ -1,0 +1,96 @@
+{
+  "schema_version": "3.0",
+  "username": "KatieCalibrationGood",
+  "session_id": "session_015856",
+  "device_id": "qnx_pi_23",
+  "task": {
+    "type": "path_tracing",
+    "version": "mat_v1",
+    "difficulty": 1
+  },
+  "created_at": "2026-07-18T15:58:56Z",
+  "timing": {
+    "started_at": "2026-07-18T15:58:56Z",
+    "duration_ms": 42300
+  },
+  "scores": {
+    "accuracy": 90.0,
+    "stability": 90.0,
+    "accuracy_band": "very high",
+    "stability_band": "very high",
+    "version": "praxis-score-1.1.0"
+  },
+  "score_definitions": {
+    "version": "praxis-score-1.1.0",
+    "accuracy": {
+      "inputs": ["mean_dev_mm", "coverage_pct"],
+      "ACC_GOOD_MM": 1.86,
+      "ACC_BAD_MM": 13.04
+    },
+    "stability": {
+      "inputs": ["tremor_rms_deg_s"],
+      "STAB_GOOD_DPS": 5.18,
+      "STAB_BAD_DPS": 35.91
+    }
+  },
+  "percentiles": {
+    "accuracy": {
+      "percentile": 93.3,
+      "reference_set_version": "praxis-refset-proto-1",
+      "sample_count": 30,
+      "is_prototype": true
+    },
+    "stability": {
+      "percentile": 90.0,
+      "reference_set_version": "praxis-refset-proto-1",
+      "sample_count": 30,
+      "is_prototype": true
+    }
+  },
+  "explanation": {
+    "summary": "Accuracy scored 90.0 and stability scored 90.0 on this task.",
+    "source": "template",
+    "validated": true,
+    "explain_version": "praxis-explain-1"
+  },
+  "metrics": {
+    "mean_dev_px": 17.11,
+    "max_dev_px": 46.0,
+    "rms_dev_px": 20.4,
+    "coverage_pct": 72.4,
+    "scale_px_per_mm": 9.2,
+    "mean_dev_mm": 1.86,
+    "max_dev_mm": 5.0,
+    "rms_dev_mm": 2.22,
+    "slice_mean_dev_px": 17.1,
+    "accuracy_score": 90.0,
+    "completion_time_seconds": 42.3,
+    "gyro_rms_deg_s": 10.22,
+    "peak_angular_velocity_deg_s": 31.5,
+    "tremor_rms_deg_s": 5.18,
+    "stability_score": 90.0
+  },
+  "quality": {
+    "n_ref_slices": 140,
+    "n_scored_slices": 101,
+    "frame": [2304, 1296],
+    "imu_samples_received": 6380,
+    "imu_samples_invalid": 2,
+    "imu_rate_hz": 151.0,
+    "calibration_valid": true,
+    "warnings": []
+  },
+  "trace": {
+    "frame": [2304, 1296],
+    "reference": [[120, 648], [320, 610], [520, 670]],
+    "red": [[120, 650], [320, 622], [520, 668]]
+  },
+  "artifacts": {
+    "imu_jsonl": "imu.jsonl",
+    "imu_bias": "imu_bias.json",
+    "vision_score": "score.json",
+    "end_image": "end.bmp",
+    "preview_image": "preview.bmp"
+  }
+}
+

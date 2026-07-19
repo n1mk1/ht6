@@ -1,9 +1,12 @@
-// rt_vision — all camera-touching code for RehabTrace (QNX, C++).
+// rt_vision — all camera-touching code for Praxis (QNX, C++).
 //
 // Modes:
 //   rt_vision preview --out BMP
 //       Grab one settled frame -> BMP. Used for the live camera view in the UI
 //       (the dashboard polls this a couple of times a second).
+//   rt_vision stream --out BMP
+//       Keep one viewfinder open and atomically refresh a preview BMP until the
+//       process is terminated. This avoids repeatedly reopening the QNX camera.
 //   rt_vision score --out FILE [--endbmp BMP] [--slice N]
 //       Grab ONE settled post-task frame that contains BOTH the printed BLUE
 //       reference pattern and the participant's RED pen trace. Walk the image in
@@ -25,6 +28,7 @@
 #include <cstring>
 #include <ctime>
 #include <mutex>
+#include <signal.h>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
@@ -49,6 +53,9 @@ struct FrameStore {
 };
 static FrameStore g_frame;
 static std::atomic<uint64_t> g_frames_seen{0};
+static std::atomic<bool> g_running{true};
+
+static void stop_signal(int) { g_running.store(false); }
 
 static void viewfinder_cb(camera_handle_t, camera_buffer_t* buf, void*) {
   if (!buf || buf->frametype != CAMERA_FRAMETYPE_NV12) return;
@@ -453,6 +460,48 @@ static int do_preview(const Args& a) {
   return 0;
 }
 
+static int do_stream(const Args& a) {
+  std::string out = a.out.empty() ? std::string("/tmp/preview.bmp") : a.out;
+  std::string temp = out + ".tmp";
+  signal(SIGTERM, stop_signal);
+  signal(SIGINT, stop_signal);
+  if (!camera_start()) return 2;
+  if (!wait_first_frame(5000)) {
+    fprintf(stderr, "no frames from camera within 5s\n");
+    camera_stop();
+    return 2;
+  }
+  usleep(250 * 1000);
+  uint64_t last_seq = 0;
+  int published = 0;
+  while (g_running.load()) {
+    Frame f;
+    if (take_frame(f, last_seq)) {
+      last_seq = f.seq;
+      int dec = (int)f.w / 480;
+      if (dec < 1) dec = 1;
+      if (write_bmp_dec(temp, f, dec) && rename(temp.c_str(), out.c_str()) == 0)
+        ++published;
+    }
+    usleep(100 * 1000);
+  }
+  camera_stop();
+  unlink(temp.c_str());
+  printf("{\"ok\":true,\"frames_published\":%d,\"file\":\"%s\"}\n",
+         published, out.c_str());
+  return 0;
+}
+
+static int do_capture(const Args& a) {
+  Frame f;
+  if (!grab_settled(f, 700)) return 2;
+  std::string out = a.out.empty() ? std::string("/tmp/capture.bmp") : a.out;
+  if (!write_bmp_dec(out, f, 1)) { fprintf(stderr, "cannot write %s\n", out.c_str()); return 2; }
+  printf("{\"ok\":true,\"frame\":[%u,%u],\"file\":\"%s\"}\n",
+         f.w, f.h, out.c_str());
+  return 0;
+}
+
 // -------------------------------------------------------------------- main
 int main(int argc, char** argv) {
   Args a;
@@ -460,6 +509,10 @@ int main(int argc, char** argv) {
     fprintf(stderr,
             "usage: rt_vision preview --out BMP\n"
             "         one settled frame -> BMP (live camera view)\n"
+            "       rt_vision stream --out BMP\n"
+            "         continuously refresh BMP using one open viewfinder\n"
+            "       rt_vision capture --out BMP\n"
+            "         one settled full-resolution frame -> BMP\n"
             "       rt_vision score --out FILE [--endbmp BMP] [--slice N]\n"
             "         one frame -> vertical-slice black-vs-red deviation score\n");
     return 1;
@@ -479,6 +532,8 @@ int main(int argc, char** argv) {
     else if (s == "--purple-v") a.th.purple_v_min = atoi(next().c_str());
   }
   if (a.mode == "preview") return do_preview(a);
+  if (a.mode == "stream") return do_stream(a);
+  if (a.mode == "capture") return do_capture(a);
   if (a.mode == "score") return do_score(a);
   fprintf(stderr, "unknown mode '%s'\n", a.mode.c_str());
   return 1;

@@ -1,6 +1,6 @@
-# RehabTrace dev loop. Edit locally -> `make deploy` -> use the dashboard.
+# Praxis QNX dev loop. Edit locally -> `make deploy` -> use the dashboard.
 
-.PHONY: help sync build server dash stop-server imu-cal shell info deploy
+.PHONY: help sync build server dash dataset pull-dataset ai-train ai-install ai-models ai stop-server imu-cal shell info deploy
 
 help:
 	@echo "  make deploy    - sync + build rt_vision + (re)start server"
@@ -8,6 +8,12 @@ help:
 	@echo "  make build     - compile rt_vision on the Pi"
 	@echo "  make server    - (re)start the control server on the Pi"
 	@echo "  make dash      - open the dashboard in your browser"
+	@echo "  make dataset   - open the image-quality capture UI"
+	@echo "  make pull-dataset - copy captured images from the Pi into this repo"
+	@echo "  make ai-train  - train the image-quality model from captured data"
+	@echo "  make ai-install - install official QNX llama.cpp packages app-locally"
+	@echo "  make ai-models - verify and copy GGUF model files to the Pi"
+	@echo "  make ai        - train, install, copy models, and deploy"
 	@echo "  make imu-cal   - quick IMU bias calibration test"
 	@echo "  make shell     - interactive SSH into the project dir"
 
@@ -25,6 +31,23 @@ deploy: build server
 
 dash:
 	@open http://qnxpi23.local:8080/
+
+dataset:
+	@open http://qnxpi23.local:8080/dataset
+
+pull-dataset:
+	@./scripts/pull-image-dataset.sh
+
+ai-train:
+	@python3 image_quality/train.py
+
+ai-install: sync
+	@./scripts/pi.sh 'bash ~/steadyeye/scripts/install-llama-local.sh'
+
+ai-models:
+	@./scripts/push-ai-models.sh
+
+ai: ai-train ai-install ai-models deploy
 
 stop-server:
 	@./scripts/pi.sh 'kill $$(cat ~/steadyeye/server.pid 2>/dev/null) 2>/dev/null && echo stopped || echo "not running"'

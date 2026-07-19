@@ -22,17 +22,20 @@ def check(cond, msg):
 def test_scores():
     # perfect trace: 0 mm deviation, full coverage -> 100
     check(score.accuracy_score(0.0, 100.0) == 100.0, "acc perfect == 100")
-    # coverage scales the score
-    check(score.accuracy_score(0.0, 50.0) == 50.0, "acc half coverage == 50")
+    # coverage is required for quality, but no longer caps the score
+    check(score.accuracy_score(0.0, 50.0) == 100.0, "acc perfect with partial coverage == 100")
     # missing inputs -> None (never fabricate)
     check(score.accuracy_score(None, 100.0) is None, "acc None input -> None")
+    check(score.accuracy_score(0.0, None) is None, "acc missing coverage -> None")
     check(score.stability_score(None) is None, "stab None -> None")
     # stability: 0 tremor -> 100, monotonic decrease
     check(score.stability_score(0.0) == 100.0, "stab perfect == 100")
     check(score.stability_score(6.0) < score.stability_score(3.0), "stab monotonic")
-    # deviation at the tolerance -> ~36.8 * coverage
-    a = score.accuracy_score(score.ACC_TOL_MM, 100.0)
-    check(36.0 <= a <= 37.5, f"acc at tol ~= 36.8 (got {a})")
+    # baseline anchors
+    check(score.accuracy_score(score.ACC_GOOD_MM, 72.4) == 90.0, "good acc anchor -> 90")
+    check(score.accuracy_score(score.ACC_BAD_MM, 100.0) == 10.0, "bad acc anchor -> 10")
+    check(score.stability_score(score.STAB_GOOD_DPS) == 90.0, "good stab anchor -> 90")
+    check(score.stability_score(score.STAB_BAD_DPS) == 10.0, "bad stab anchor -> 10")
 
 
 # ---- band boundaries -----------------------------------------------------
@@ -114,6 +117,15 @@ def test_explain_fallback():
     check(explain.validate_summary(r["summary"], obj), "template self-validates")
 
 
+def test_constrained_candidates():
+    obj = _sample_obj()
+    candidates = explain._candidate_summaries(obj)
+    check(len(candidates) >= 2, "multiple narrative candidates are available")
+    for candidate in candidates:
+        check(explain.validate_summary(candidate, obj),
+              "every llama-selectable candidate is fact-valid")
+
+
 # ---- structured-input schema ---------------------------------------------
 def test_input_schema():
     obj = _sample_obj()
@@ -129,7 +141,8 @@ if __name__ == "__main__":
     print("running Praxis tests...")
     for fn in (test_scores, test_bands, test_percentile_valid,
                test_percentile_missing, test_llm_validation,
-               test_explain_fallback, test_input_schema):
+               test_explain_fallback, test_constrained_candidates,
+               test_input_schema):
         fn()
     if FAIL == 0:
         print("ALL TESTS PASSED")

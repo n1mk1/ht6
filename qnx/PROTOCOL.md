@@ -1,91 +1,119 @@
-# Praxis — establishing the accuracy & stability scale
+# Praxis score calibration protocol
 
-Praxis reports two raw 0–100 scores plus a **Good / Fair / Poor** classification.
-The raw scores are deterministic; the *class boundaries* are where judgement
-enters. Inventing thresholds is not defensible, so this protocol anchors them to
-**measured reference performance** instead.
+Praxis maps two physical task measurements onto versioned 0–100 scores:
 
-> These are **prototype task-performance measures, not validated clinical
-> metrics**. They do not diagnose, screen, or grade any condition. For an
-> individual, the meaningful signal is **change across their own sessions**;
-> the absolute Good/Fair/Poor bands are a coarse, task-specific descriptor.
+| Score | Source measurement | Direction |
+|---|---|---|
+| Accuracy | `mean_dev_mm`, perpendicular red-to-blue path deviation | Lower is better |
+| Stability | `tremor_rms_deg_s`, high-frequency gyro residual | Lower is better |
 
-## What is actually classified
+The current scale uses measured good and deliberately degraded anchor sessions.
+It then assigns one of five score bands: `very low`, `low`, `moderate`, `high`,
+or `very high`. These bands describe prototype task performance; they are not
+clinical thresholds.
 
-Classification runs on the **physical measures**, not the 0–100 score, because
-the physical quantities are interpretable and setup-independent:
+> Calibration cannot validate the metric clinically. Praxis should be used for
+> within-person, compatible-session comparison unless a separate validation
+> study supports a broader interpretation.
 
-| Class of | Measure | Units | Direction |
-|---|---|---|---|
-| Accuracy | `mean_dev_mm` (mean perpendicular deviation, red↔blue) | mm | lower = better |
-| Stability | `tremor_rms_deg_s` (gyro jitter after removing intended motion) | °/s | lower = better |
+## Freeze the task and setup
 
-Bands: `good` ≤ *GOOD*, `poor` > *POOR*, else `fair`. Defaults (provisional):
-`ACC_GOOD_MM=4`, `ACC_POOR_MM=8`, `STAB_GOOD_DPS=3`, `STAB_POOR_DPS=7`.
-Set them as environment variables when launching the server.
+Before collecting calibration runs, hold all relevant conditions constant:
 
-## Why you must calibrate per task template
+- printed pattern and `task.version`;
+- task difficulty and instructed pace;
+- camera height, paper placement, focus, and lighting;
+- `SCALE_PX_PER_MM` rig calibration;
+- pen, IMU mounting, grip instructions, and hand metadata; and
+- score implementation and `SCORE_VERSION`.
 
-`mean_dev_mm` depends on the pattern (a gentle curve is easier than a sharp
-zig-zag) and the instructed speed; `tremor_rms` depends on tool weight and
-grip. **Bands are only valid for one fixed template + setup + instruction set.**
-Re-calibrate if any of those change, and record the template version with the
-thresholds.
+Create a new task version or calibration set when one of these materially
+changes. Do not compare incompatible versions.
 
-## Calibration protocol
+## Collect anchor conditions
 
-### 1. Freeze the setup
-Same printed pattern (record its `task.version`), same camera height and mat
-position, same purple scale bar length, same verbal instructions and target
-pace. Note them in the results file.
+Use several participants and multiple trials per condition when possible. Keep
+the original run bundles and record the intended condition separately from the
+measured result.
 
-### 2. Collect anchor conditions
-You are deliberately producing *known-good* and *known-poor* performances to
-bracket the scale. Recruit several people (≥5 is better; even 2–3 helps) and
-have each do these conditions, a few trials each:
+Accuracy conditions:
 
-**Accuracy anchors**
-- **Careful** — "trace as accurately as you can, take your time." → *good* anchor
-- **Natural** — "trace at a comfortable, normal pace." → *mid*
-- **Degraded** — non-dominant hand (or fast/careless). → *poor* anchor
+- **Careful:** trace as accurately as possible at a comfortable pace.
+- **Natural:** trace normally using the standard instruction.
+- **Degraded:** deliberately trace inaccurately, use the non-dominant hand, or
+  use another predefined reproducible perturbation.
 
-**Stability anchors**
-- **Braced** — forearm supported, move slowly. → *good* anchor
-- **Natural** — unsupported, normal pace. → *mid*
-- **Perturbed** — deliberately shaky / unsupported / right after exertion. → *poor* anchor
+Stability conditions:
 
-Every run stores `mean_dev_mm` and `tremor_rms_deg_s` in
-`sessions/<id>/session.json` — collect them per condition.
+- **Braced:** forearm supported with slow deliberate motion.
+- **Natural:** standard unsupported task performance.
+- **Perturbed:** a predefined deliberately unstable condition.
 
-### 3. Set thresholds from the distributions
-For each measure you now have three clusters (good / mid / poor). Set:
-- **GOOD boundary** = ~75th percentile of the *careful / braced* cluster
-  (most careful attempts land at "good").
-- **POOR boundary** = ~25th percentile of the *degraded / perturbed* cluster
-  (most degraded attempts land at "poor").
-- Everything between is **fair**.
+Do not treat the intended label as proof that a run is usable. Exclude runs with
+capture, calibration, or missing-data quality warnings before deriving anchors.
 
-A quick, defensible first pass with limited data: take the **median of the good
-condition** and the **median of the poor condition**; put GOOD at the good-median
-and POOR at the poor-median.
+## Derive score anchors
 
-### 4. Sanity-check and lock
-Re-run a handful of fresh traces; confirm the labels match a human's eyeball
-judgement of "clean / ok / messy." Nudge boundaries if needed. Record the final
-thresholds **with**: template version, number of participants/trials, and date.
+The mapping in `praxis/score.py` uses a good physical anchor at score 90 and a
+bad physical anchor at score 10. Values beyond those anchors continue linearly
+to 100 and 0 and are clamped.
 
-### 5. Individual tracking overrides the absolute bands
-For a returning participant, compare **their** `mean_dev_mm` / `tremor_rms`
-across sessions (within-person deltas). This removes between-person variation
-and is far more reliable than the absolute Good/Fair/Poor label. Use the bands
-for a first-glance summary; use the trend for actual progress.
+For each physical measure:
 
-## Applying calibrated thresholds
+1. Inspect distributions by participant and condition.
+2. Select a robust good anchor from usable careful/braced runs.
+3. Select a robust bad anchor from usable degraded/perturbed runs.
+4. Verify that the anchors are ordered, separated, and reproducible on held-out
+   runs.
+5. Record the source sessions, participants, task version, setup, and date.
+
+The current prototype anchors are:
+
+| Constant | Value | Maps to |
+|---|---:|---:|
+| `ACC_GOOD_MM` | 1.86 mm | accuracy 90 |
+| `ACC_BAD_MM` | 13.04 mm | accuracy 10 |
+| `STAB_GOOD_DPS` | 5.18 deg/s | stability 90 |
+| `STAB_BAD_DPS` | 35.91 deg/s | stability 10 |
+
+These values are implementation anchors from the existing prototype sessions,
+not population norms.
+
+## Update and version the implementation
+
+Anchors are constants in `qnx/praxis/score.py`; the server does not read the
+obsolete `ACC_GOOD_MM`, `ACC_POOR_MM`, `STAB_GOOD_DPS`, or `STAB_POOR_DPS`
+three-band environment settings described by earlier versions of this file.
+
+For any anchor, formula, tolerance, or band-boundary change:
+
+1. update `qnx/praxis/score.py`;
+2. increment `SCORE_VERSION`;
+3. add or update scoring tests;
+4. document the calibration evidence; and
+5. avoid comparing scores from different versions as if they share one scale.
+
+Every `session.json` stores its score version and complete
+`score_definitions`, preserving the interpretation used at capture time.
+
+## Validate the revised scale
+
+Run held-out careful, natural, and degraded trials and verify:
+
+- repeated runs under the same condition have acceptable variability;
+- careful/braced and degraded/perturbed distributions are meaningfully
+  separated;
+- quality failures produce warnings or null values rather than plausible
+  fabricated scores; and
+- within-person changes agree with the physical measurements, not just the
+  displayed band.
+
+Run the deterministic unit checks after any change:
 
 ```bash
-ACC_GOOD_MM=3 ACC_POOR_MM=7 STAB_GOOD_DPS=2.5 STAB_POOR_DPS=6 \
-  ~/venv/bin/python server/server.py
+python3 qnx/tests/test_praxis.py
 ```
 
-The chosen bands are echoed into every `session.json` under
-`scores.bands`, so each result records the scale it was judged against.
+Reference-set percentiles are a separate calibration problem. They require at
+least 20 real compatible samples per task/version/difficulty stratum and must
+carry their own reference-set version and population description.
