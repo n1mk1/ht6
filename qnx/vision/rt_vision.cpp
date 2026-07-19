@@ -157,9 +157,17 @@ struct Thresh {
   int red_v_min = 150;    // Cr high => red ink
   int red_u_max = 128;    // Cb <= mid => warm (red)
   int red_y_min = 60;     // red ink is bright enough to be ink, not shadow
-  int blue_u_min = 150;   // Cb high => blue ink
-  int blue_v_max = 120;   // Cr low  => blue (excludes magenta/purple leaning red)
+  int blue_u_min = 140;   // Cb high => blue ink (loosened for shadowed blue)
+  int blue_v_max = 125;   // Cr low  => blue (excludes magenta/purple leaning red)
   int blue_y_min = 30;    // exclude near-black sensor noise
+  // Purple scale marker: high Cb AND high Cr (the fourth chroma corner). Paper
+  // is near-neutral and never has BOTH channels high, so purple stays clear of
+  // the washed-out paper. Cb>=145 keeps it clear of red-over-blue overlap (whose
+  // Cb~130), so Cr/Y can be loose enough to catch the whole bar incl. its
+  // less-saturated / shadowed end.
+  int purple_u_min = 145;  // Cb high (the discriminating channel)
+  int purple_v_min = 133;  // Cr high (loosened: bar ends dip to ~136)
+  int purple_y_min = 18;   // catch the shadowed end of the bar
 };
 
 static bool is_red(const Frame& f, int x, int y, const Thresh& th) {
@@ -172,6 +180,12 @@ static bool is_blue(const Frame& f, int x, int y, const Thresh& th) {
   uint8_t u, v;
   f.UV(x, y, u, v);
   return u >= th.blue_u_min && v <= th.blue_v_max && f.Y(x, y) >= th.blue_y_min;
+}
+
+static bool is_purple(const Frame& f, int x, int y, const Thresh& th) {
+  uint8_t u, v;
+  f.UV(x, y, u, v);
+  return u >= th.purple_u_min && v >= th.purple_v_min && f.Y(x, y) >= th.purple_y_min;
 }
 
 // -------------------------------------------------------------- BMP output
@@ -248,8 +262,71 @@ static bool write_bmp(const std::string& path, const Frame& f) {
 struct Args {
   std::string mode, out, endbmp;
   int slice_px = 16;   // vertical-slice width in pixels
+  double scale_mm = 0; // known length of the green scale bar (mm); 0 = disabled
   Thresh th;
 };
+
+// Measure the purple scale bar's pixel length. Coarse-grid connected
+// components; pick the most bar-like blob (long + thin) so any stray purple is
+// ignored. Returns length in px (0 if none), sets out_px to purple pixel count.
+static double measure_scale_bar(const Frame& f, const Thresh& th, int& out_px,
+                                double bar_ends[4]) {
+  const int cell = 16;
+  int gw = (f.w + cell - 1) / cell, gh = (f.h + cell - 1) / cell;
+  std::vector<int> cnt((size_t)gw * gh, 0);
+  int total = 0;
+  for (int y = 0; y < (int)f.h; y += 2)
+    for (int x = 0; x < (int)f.w; x += 2)
+      if (is_purple(f, x, y, th)) { cnt[(size_t)(y / cell) * gw + (x / cell)]++; ++total; }
+  out_px = total;
+  bar_ends[0] = bar_ends[1] = bar_ends[2] = bar_ends[3] = 0;
+
+  std::vector<char> lab((size_t)gw * gh, 0);
+  std::vector<size_t> stack;
+  double best_len = 0;
+  int bmnx = 0, bmny = 0, bmxx = 0, bmxy = 0;  // best blob bbox (cells)
+  for (int gy = 0; gy < gh; ++gy) {
+    for (int gx = 0; gx < gw; ++gx) {
+      size_t idx = (size_t)gy * gw + gx;
+      if (cnt[idx] < 2 || lab[idx]) continue;
+      int minx = gx, maxx = gx, miny = gy, maxy = gy;
+      lab[idx] = 1;
+      stack.push_back(idx);
+      while (!stack.empty()) {
+        size_t c = stack.back(); stack.pop_back();
+        int cy = (int)(c / gw), cx = (int)(c % gw);
+        if (cx < minx) minx = cx; if (cx > maxx) maxx = cx;
+        if (cy < miny) miny = cy; if (cy > maxy) maxy = cy;
+        for (int dy = -1; dy <= 1; ++dy)
+          for (int dx = -1; dx <= 1; ++dx) {
+            int nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue;
+            size_t n = (size_t)ny * gw + nx;
+            if (cnt[n] >= 2 && !lab[n]) { lab[n] = 1; stack.push_back(n); }
+          }
+      }
+      double dxp = (maxx - minx + 1) * cell, dyp = (maxy - miny + 1) * cell;
+      double len = dxp > dyp ? dxp : dyp, thick = dxp > dyp ? dyp : dxp;
+      double aspect = len / (thick > 0 ? thick : 1);
+      if (aspect >= 3.0 && len > best_len) {  // bar-like only
+        best_len = len;
+        bmnx = minx; bmny = miny; bmxx = maxx; bmxy = maxy;
+      }
+    }
+  }
+  if (best_len > 0) {  // endpoints along the bar's long axis (image pixels)
+    double x0 = bmnx * cell, x1 = (bmxx + 1) * cell;
+    double y0 = bmny * cell, y1 = (bmxy + 1) * cell;
+    if ((x1 - x0) >= (y1 - y0)) {  // horizontal bar
+      double ym = (y0 + y1) / 2;
+      bar_ends[0] = x0; bar_ends[1] = ym; bar_ends[2] = x1; bar_ends[3] = ym;
+    } else {                       // vertical bar
+      double xm = (x0 + x1) / 2;
+      bar_ends[0] = xm; bar_ends[1] = y0; bar_ends[2] = xm; bar_ends[3] = y1;
+    }
+  }
+  return best_len;
+}
 
 static int do_score(const Args& a) {
   Frame f;
@@ -271,6 +348,16 @@ static int do_score(const Args& a) {
       if (is_blue(f, x, y, a.th)) { bn[s]++; bsx[s] += x; bsy[s] += y; }
       else if (is_red(f, x, y, a.th)) { rn[s]++; rsx[s] += x; rsy[s] += y; }
     }
+  }
+
+  // px -> mm from the purple scale bar (bar-shaped blob).
+  double px_per_mm = 0;
+  bool have_scale = false;
+  int gn = 0;
+  double bar_ends[4] = {0, 0, 0, 0};
+  if (a.scale_mm > 0) {
+    double len_px = measure_scale_bar(f, a.th, gn, bar_ends);
+    if (len_px > 5) { px_per_mm = len_px / a.scale_mm; have_scale = true; }
   }
 
   // Per-slice centroids -> polylines + deviations where both colours present.
@@ -316,6 +403,19 @@ static int do_score(const Args& a) {
   fprintf(fp, "\"coverage_pct\":%.1f,\"mean_dev_px\":%.2f,\"max_dev_px\":%.2f,"
               "\"rms_dev_px\":%.2f,\"ref_extent_px\":%.1f,",
           coverage, mean_dev, max_dev, rms_dev, extent);
+  // Scale + millimetre conversions (null when no green bar is detected).
+  if (have_scale) {
+    fprintf(fp, "\"scale_px_per_mm\":%.4f,\"scale_px\":%d,"
+                "\"mean_dev_mm\":%.2f,\"max_dev_mm\":%.2f,\"rms_dev_mm\":%.2f,"
+                "\"ref_extent_mm\":%.2f,",
+            px_per_mm, gn, mean_dev / px_per_mm, max_dev / px_per_mm,
+            rms_dev / px_per_mm, extent / px_per_mm);
+  } else {
+    fprintf(fp, "\"scale_px_per_mm\":null,\"scale_px\":%d,"
+                "\"mean_dev_mm\":null,\"max_dev_mm\":null,\"rms_dev_mm\":null,"
+                "\"ref_extent_mm\":null,",
+            gn);
+  }
   auto put_poly = [&](const char* name, const std::vector<double>& xs,
                       const std::vector<double>& ys) {
     fprintf(fp, "\"%s\":[", name);
@@ -325,6 +425,11 @@ static int do_score(const Args& a) {
   };
   put_poly("reference", bpx, bpy); fprintf(fp, ",");
   put_poly("red", rpx, rpy); fprintf(fp, ",");
+  if (have_scale)
+    fprintf(fp, "\"scale_bar\":[[%.1f,%.1f],[%.1f,%.1f]],", bar_ends[0],
+            bar_ends[1], bar_ends[2], bar_ends[3]);
+  else
+    fprintf(fp, "\"scale_bar\":null,");
   fprintf(fp, "\"dev\":[");
   for (size_t i = 0; i < dev.size(); ++i) fprintf(fp, "%s%.1f", i ? "," : "", dev[i]);
   fprintf(fp, "]}\n");
@@ -366,9 +471,12 @@ int main(int argc, char** argv) {
     if (s == "--out") a.out = next();
     else if (s == "--endbmp") a.endbmp = next();
     else if (s == "--slice") a.slice_px = atoi(next().c_str());
+    else if (s == "--scale-mm") a.scale_mm = atof(next().c_str());
     else if (s == "--red-v") a.th.red_v_min = atoi(next().c_str());
     else if (s == "--blue-u") a.th.blue_u_min = atoi(next().c_str());
     else if (s == "--blue-v") a.th.blue_v_max = atoi(next().c_str());
+    else if (s == "--purple-u") a.th.purple_u_min = atoi(next().c_str());
+    else if (s == "--purple-v") a.th.purple_v_min = atoi(next().c_str());
   }
   if (a.mode == "preview") return do_preview(a);
   if (a.mode == "score") return do_score(a);

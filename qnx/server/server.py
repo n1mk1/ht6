@@ -25,6 +25,7 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -40,6 +41,16 @@ IMU_PY = os.path.expanduser("~/venv/bin/python")
 IMU_REC = os.path.join(BASE, "imu", "imu_recorder.py")
 PORT = 8080
 
+# Deterministic Praxis scoring / percentile / explainability (single source of
+# truth, shared with the saved session and — by porting — the external web app).
+sys.path.insert(0, BASE)
+from praxis import score as praxis_score       # noqa: E402
+from praxis import percentile as praxis_pct     # noqa: E402
+from praxis import explain as praxis_explain    # noqa: E402
+
+# Canonical task identity — must match a reference-set stratum for percentiles.
+TASK = {"type": "path_tracing", "version": "mat_v1", "difficulty": 1}
+
 # Webapp backend (on a separate computer) that ingests runs into MongoDB.
 # Set BACKEND_URL to its base URL, e.g. http://192.168.1.50:8000 — the server
 # POSTs each finished run to BACKEND_URL + BACKEND_RUNS_PATH. If unset or
@@ -50,18 +61,17 @@ BACKEND_KEY = os.environ.get("BACKEND_KEY", "")   # optional X-Device-Key
 DEVICE_ID = os.environ.get("DEVICE_ID", "qnx_pi_23")
 
 SLICE_PX = 16          # vertical-slice width for accuracy scoring
-# Accuracy tolerance: mean per-slice deviation as a fraction of frame height.
-# score = 100*exp(-(mean_dev_px/frame_h)/DEV_TOL_FRAC), then scaled by coverage.
-# 3% of a 1296px frame ~= 39px at the "37/100" point. Tune after a real run.
-DEV_TOL_FRAC = 0.03
-# Stability = steadiness of the pen, isolating tremor from the deliberate
-# tracing motion. We high-pass |gyro|: subtract a ~TREMOR_WIN_S moving average
-# (the intended, slow trajectory) and take the RMS of the residual jitter.
-# score = 100*exp(-tremor_rms/TREMOR_TOL). A still/smooth hand -> tremor near 0
-# -> ~100; shakiness raises tremor_rms. Calibrate TREMOR_TOL with one smooth and
-# one deliberately shaky trace: set it near the shaky run's tremor_rms (~37/100).
+# Fixed rig: camera height and mat distance never change, so px->mm is a
+# ONE-TIME constant, not a per-run measurement. (Calibrated from an 80 mm purple
+# bar measuring 736 px → 9.2 px/mm.) Recalibrate only if the rig moves: put the
+# 80 mm bar in frame and run
+#   ./vision/rt_vision score --out /tmp/s.json --scale-mm 80
+# then set scale_px_per_mm here (or via the SCALE_PX_PER_MM env var).
+SCALE_PX_PER_MM = float(os.environ.get("SCALE_PX_PER_MM", "9.2"))
+# Stability tremor: high-pass |gyro| by subtracting a ~TREMOR_WIN_S moving
+# average (the intended slow trajectory); the residual RMS is the tremor. The
+# 0-100 scaling, bands and version live in praxis.score (single source of truth).
 TREMOR_WIN_S = 0.3     # moving-average window (s) that defines "intended motion"
-TREMOR_TOL = 6.0       # deg/s residual jitter at the ~37/100 point
 
 S = {
     "phase": "idle",   # idle -> recording -> stopped -> complete
@@ -101,32 +111,51 @@ def load_json(path):
 
 
 # ------------------------------------------------------------------ scoring
-def accuracy_from_vision(v):
-    """0-100 accuracy from the vertical-slice pixel deviations.
+def _seg_dist(p, a, b):
+    """Distance from point p to segment a-b (all [x,y])."""
+    abx, aby = b[0] - a[0], b[1] - a[1]
+    l2 = abx * abx + aby * aby
+    t = 0.0 if l2 == 0 else max(0.0, min(1.0, ((p[0]-a[0])*abx + (p[1]-a[1])*aby)/l2))
+    cx, cy = a[0] + t*abx, a[1] + t*aby
+    return math.hypot(p[0]-cx, p[1]-cy)
 
-    position score decays with mean per-slice |y_red - y_black| (normalised by
-    frame height so it is roughly zoom-independent); then scaled by coverage so
-    untraced parts of the pattern lower the score."""
-    if not v or not v.get("ok"):
-        return None
-    frame_h = (v.get("frame") or [0, 1])[1] or 1
-    mean_dev = v.get("mean_dev_px")
-    cov = v.get("coverage_pct")
-    if mean_dev is None or cov is None:
-        return None
-    norm = (mean_dev / frame_h) / DEV_TOL_FRAC
-    position = 100.0 * math.exp(-norm)
-    return round(position * (cov / 100.0), 1)
+
+def poly_dist(p, poly):
+    """Nearest (perpendicular) distance from point p to a polyline."""
+    if len(poly) < 2:
+        return 0.0
+    return min(_seg_dist(p, poly[i], poly[i+1]) for i in range(len(poly)-1))
+
+
+def perp_deviations(red, ref, x_tol=None):
+    """True curve-to-curve deviations: each attempt point's nearest distance to
+    the reference polyline. Orientation-independent, so steep sections aren't
+    over-counted the way the vertical-slice distance is.
+
+    Overlap assumption: where the red trace covers the blue reference, blue can't
+    be detected there. If no reference point exists within `x_tol` of a red
+    point's x, we assume the pen overlapped the reference (deviation 0) rather
+    than measuring against a distant detected blue point."""
+    if not red or len(ref) < 2:
+        return []
+    ref_xs = [p[0] for p in ref]
+    devs = []
+    for rp in red:
+        if x_tol is not None and not any(abs(rx - rp[0]) <= x_tol for rx in ref_xs):
+            devs.append(0.0)          # blue occluded here -> assume overlap
+        else:
+            devs.append(poly_dist(rp, ref))
+    return devs
 
 
 def imu_stability(imu):
-    """Return (metrics, stability_score). Stability = residual jitter after the
-    slow intended trajectory is removed (high-pass |gyro|), so deliberate smooth
-    tracing is NOT penalised — only shakiness/tremor is. Raw gyro RMS and peak
-    are reported too."""
+    """IMU stability METRICS (not the 0-100 score). tremor_rms is the residual
+    jitter after the slow intended trajectory is removed (high-pass |gyro|), so
+    deliberate smooth tracing is NOT penalised — only shakiness/tremor is. The
+    0-100 stability score is derived from tremor_rms by praxis.score."""
     if not imu:
         return {"gyro_rms_deg_s": None, "peak_angular_velocity_deg_s": None,
-                "tremor_rms_deg_s": None}, None
+                "tremor_rms_deg_s": None}
     omega = [math.sqrt(o["gx"] ** 2 + o["gy"] ** 2 + o["gz"] ** 2) for o in imu]
     gyro_rms = math.sqrt(sum(w * w for w in omega) / len(omega))
     peak = max(omega)
@@ -142,10 +171,9 @@ def imu_stability(imu):
         trend = sum(omega[lo:hi]) / (hi - lo)   # slow intended trajectory
         resid2 += (omega[i] - trend) ** 2       # high-frequency tremor
     tremor_rms = math.sqrt(resid2 / len(omega))
-    stability = round(100.0 * math.exp(-tremor_rms / TREMOR_TOL), 1)
-    return ({"gyro_rms_deg_s": round(gyro_rms, 2),
-             "peak_angular_velocity_deg_s": round(peak, 2),
-             "tremor_rms_deg_s": round(tremor_rms, 2)}, stability)
+    return {"gyro_rms_deg_s": round(gyro_rms, 2),
+            "peak_angular_velocity_deg_s": round(peak, 2),
+            "tremor_rms_deg_s": round(tremor_rms, 2)}
 
 
 def read_imu(d):
@@ -172,22 +200,54 @@ def compute_metrics(d, t_go_ns, t_stop_ns):
 
     warnings = []
     m = {}
-    m["accuracy_score"] = accuracy_from_vision(v)
     if v and v.get("ok"):
-        m["mean_dev_px"] = v.get("mean_dev_px")
-        m["max_dev_px"] = v.get("max_dev_px")
-        m["rms_dev_px"] = v.get("rms_dev_px")
-        m["coverage_pct"] = v.get("coverage_pct")
+        ref = v.get("reference") or []
+        red = v.get("red") or []
+        scale = SCALE_PX_PER_MM          # fixed rig calibration, not per-run
+        cov = v.get("coverage_pct")
+        frame_h = (v.get("frame") or [0, 1])[1] or 1
+
+        # perpendicular (nearest-point) deviation — the accuracy basis.
+        # x_tol applies the overlap assumption for occluded (red-over-blue) spans.
+        perp = perp_deviations(red, ref, x_tol=SLICE_PX * 1.5)
+        if perp:
+            mean_px = sum(perp) / len(perp)
+            max_px = max(perp)
+            rms_px = math.sqrt(sum(x * x for x in perp) / len(perp))
+        else:
+            mean_px = max_px = rms_px = None
+            warnings.append("no_deviation_points")
+
+        m["mean_dev_px"] = round(mean_px, 2) if mean_px is not None else None
+        m["max_dev_px"] = round(max_px, 2) if max_px is not None else None
+        m["rms_dev_px"] = round(rms_px, 2) if rms_px is not None else None
+        m["coverage_pct"] = cov
+        m["scale_px_per_mm"] = scale
+        if scale and mean_px is not None:
+            m["mean_dev_mm"] = round(mean_px / scale, 2)
+            m["max_dev_mm"] = round(max_px / scale, 2)
+            m["rms_dev_mm"] = round(rms_px / scale, 2)
+        else:
+            m["mean_dev_mm"] = m["max_dev_mm"] = m["rms_dev_mm"] = None
+            if scale is None:
+                warnings.append("no_scale_bar_mm_unavailable")
+        # keep the raw vertical-slice figure for reference/debugging
+        m["slice_mean_dev_px"] = v.get("mean_dev_px")
+        # canonical versioned accuracy score (spatial error + coverage, mm-based)
+        m["accuracy_score"] = praxis_score.accuracy_score(m["mean_dev_mm"], cov)
     else:
-        for k in ("mean_dev_px", "max_dev_px", "rms_dev_px", "coverage_pct"):
+        for k in ("mean_dev_px", "max_dev_px", "rms_dev_px", "coverage_pct",
+                  "mean_dev_mm", "max_dev_mm", "rms_dev_mm", "scale_px_per_mm",
+                  "slice_mean_dev_px"):
             m[k] = None
+        m["accuracy_score"] = None
         warnings.append("vision_no_score" if v is not None else "vision_no_output")
 
     m["completion_time_seconds"] = round((t_stop_ns - t_go_ns) / 1e9, 1)
 
-    imu_m, stability = imu_stability(imu)
-    m.update(imu_m)
-    m["stability_score"] = stability
+    m.update(imu_stability(imu))
+    # canonical versioned stability score (from high-frequency tremor)
+    m["stability_score"] = praxis_score.stability_score(m.get("tremor_rms_deg_s"))
     if not imu:
         warnings.append("no_imu_samples")
 
@@ -246,7 +306,7 @@ def api_preview(_):
     return out
 
 
-def api_go(_):
+def api_go(body):
     """Start a run: calibrate IMU bias (hold still), then record IMU + timer."""
     if not S["session_id"]:
         api_new({})
@@ -296,6 +356,7 @@ def api_score(_):
     d = sdir()
     t_stop = S["t_stop"] or time.monotonic_ns()
     with CAM_LOCK:
+        # No per-run scale detection — px->mm is the fixed SCALE_PX_PER_MM.
         code, vis = run([RT_VISION, "score", "--out", os.path.join(d, "score.json"),
                          "--endbmp", os.path.join(d, "end.bmp"),
                          "--slice", str(SLICE_PX)], timeout=30)
@@ -306,26 +367,50 @@ def api_score(_):
     if not vis.get("ok"):
         quality["warnings"].append("capture_" + str(vis.get("error", "failed")))
 
+    # --- deterministic scoring -> banding -> stratification (in this order) ---
+    acc = metrics.get("accuracy_score")
+    stab = metrics.get("stability_score")
+    bands = {"accuracy": praxis_score.band(acc),
+             "stability": praxis_score.band(stab)}
+    percentiles = praxis_pct.compute_percentiles(acc, stab, TASK)
+
+    # --- explainability LAST, over a validated structured object ---
+    explainer_input = praxis_explain.build_input(
+        TASK, {"accuracy": acc, "stability": stab}, bands, percentiles,
+        metrics, quality.get("warnings"))
+    explanation = praxis_explain.explain(explainer_input)
+
     v = load_json(os.path.join(d, "score.json")) or {}
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     session = {
-        "schema_version": "2.1",
+        "schema_version": "3.0",
         "username": S["username"] or "anonymous",
         "session_id": S["session_id"],
         "device_id": DEVICE_ID,
-        "task": {"type": "path_tracing", "version": "slice_v1"},
-        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "task": TASK,
+        "created_at": now_iso,
         "timing": {
-            "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "started_at": now_iso,
             "duration_ms": int((t_stop - S["t_go"]) / 1e6) if S["t_go"] else None,
         },
-        "scores": {"accuracy": metrics.get("accuracy_score"),
-                   "stability": metrics.get("stability_score")},
+        "scores": {"accuracy": acc, "stability": stab,
+                   "accuracy_band": bands["accuracy"],
+                   "stability_band": bands["stability"],
+                   "version": praxis_score.SCORE_VERSION},
+        "score_definitions": praxis_score.score_definitions(),
+        "percentiles": percentiles,
+        "explanation": explanation,
         "metrics": metrics,
         "quality": quality,
         # detected polylines (image pixels) so the webapp can redraw the overlay
         "trace": {"frame": v.get("frame"),
                   "reference": v.get("reference", []),
-                  "red": v.get("red", [])},
+                  "red": v.get("red", []),
+                  "scale_bar": v.get("scale_bar")},
+        # pointers to the raw artifacts saved alongside for the web app bundle
+        "artifacts": {"imu_jsonl": "imu.jsonl", "imu_bias": "imu_bias.json",
+                      "vision_score": "score.json", "end_image": "end.bmp",
+                      "preview_image": "preview.bmp"},
     }
     with open(os.path.join(d, "session.json"), "w") as f:
         json.dump(session, f, indent=2)
@@ -407,6 +492,7 @@ class Handler(BaseHTTPRequestHandler):
                 st["reference"] = v.get("reference", [])
                 st["red"] = v.get("red", [])
                 st["frame"] = v.get("frame")
+                st["scale_bar"] = v.get("scale_bar")
             return self._json(st)
         if path == "/api/imu_live":
             return self._json(tail_imu_live(sdir() or ""))

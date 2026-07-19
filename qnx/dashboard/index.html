@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RehabTrace</title>
+<title>Praxis</title>
 <style>
   :root { --bg:#0e1117; --card:#171c26; --line:#2a3140; --tx:#e6e9ef;
           --dim:#8b93a3; --acc:#4da3ff; --ok:#3ecf8e; --bad:#ff6b6b; }
@@ -38,6 +38,19 @@
            padding:14px; text-align:center; }
   .score b { font-size:38px; display:block; line-height:1.1; }
   .score span { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .band { margin-top:8px; display:inline-block; padding:3px 10px; border-radius:999px;
+          font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .band.very-high, .band.high { background:rgba(62,207,142,.18); color:var(--ok); }
+  .band.moderate { background:rgba(255,190,80,.18); color:#ffbe50; }
+  .band.low, .band.very-low { background:rgba(255,107,107,.18); color:var(--bad); }
+  .band.unknown { background:var(--line); color:var(--dim); }
+  .pctl { margin-top:6px; font-size:11px; color:var(--dim); }
+  .explain { margin-top:14px; background:var(--bg); border:1px solid var(--line);
+             border-radius:10px; padding:14px; }
+  .explain-h { font-size:12px; color:var(--dim); text-transform:uppercase;
+               letter-spacing:.04em; margin-bottom:6px; }
+  .explain-h span { text-transform:none; letter-spacing:0; }
+  #explainText { font-size:14px; line-height:1.55; }
   .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
   .metric { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; }
   .metric b { font-size:18px; display:block; } .metric span { color:var(--dim); font-size:12px; }
@@ -48,8 +61,7 @@
 </style>
 </head>
 <body>
-<h1>RehabTrace</h1>
-<div class="sub">QNX Pi · trace the black pattern in red · accuracy = per-slice black↔red pixel distance · prototype (not clinical)</div>
+<h1>Praxis</h1>
 
 <div class="grid">
   <div class="card">
@@ -76,8 +88,12 @@
   <div class="card">
     <h2>Result</h2>
     <div class="scores" id="scores" style="display:none">
-      <div class="score"><b id="sAcc">—</b><span>accuracy</span></div>
-      <div class="score"><b id="sStab">—</b><span>stability</span></div>
+      <div class="score"><b id="sAcc">—</b><span>accuracy</span>
+        <div class="band unknown" id="bAcc">—</div>
+        <div class="pctl" id="pAcc"></div></div>
+      <div class="score"><b id="sStab">—</b><span>stability</span>
+        <div class="band unknown" id="bStab">—</div>
+        <div class="pctl" id="pStab"></div></div>
     </div>
     <canvas class="result" id="result" width="660" height="371"></canvas>
     <div class="legend">
@@ -85,6 +101,10 @@
       <b class="k" style="background:#ff6b6b"></b>red trace (detected)
     </div>
     <div class="metrics" id="metrics" style="display:none"></div>
+    <div class="explain" id="explain" style="display:none">
+      <div class="explain-h">Session summary <span id="explainSrc"></span></div>
+      <div id="explainText"></div>
+    </div>
   </div>
 </div>
 
@@ -191,28 +211,54 @@ async function resetRun() {
   $("bstart").disabled = uname() === ""; $("bstop").disabled = true; $("bscore").disabled = true;
   $("timer").textContent = "0.0s"; $("gauge").innerHTML = "— <small>°/s</small>";
   $("scores").style.display = "none"; $("metrics").style.display = "none";
+  $("explain").style.display = "none";
   clearCanvas();
   msg("Live camera view. Press Start to begin.");
 }
 
 // ---- results ----
 const fmt = v => v==null ? "—" : v;
+function setBand(id, b) {
+  const el = $(id); b = b || "unknown";
+  el.className = "band " + b.replace(/\s+/g, "-");
+  el.textContent = b;
+}
+function setPctl(id, meas) {
+  const el = $(id);
+  if (!meas || meas.percentile == null) { el.textContent = "Percentile unavailable"; return; }
+  const proto = meas.is_prototype ? " · prototype ref-set" : "";
+  el.textContent = meas.percentile + "th percentile" + proto;
+}
 function renderResult(s) {
   const m = s.metrics, q = s.quality;
   $("scores").style.display = "grid";
   $("sAcc").textContent = fmt(s.scores.accuracy);
   $("sStab").textContent = fmt(s.scores.stability);
+  setBand("bAcc", s.scores.accuracy_band);
+  setBand("bStab", s.scores.stability_band);
+  setPctl("pAcc", s.percentiles && s.percentiles.accuracy);
+  setPctl("pStab", s.percentiles && s.percentiles.stability);
+  if (s.explanation && s.explanation.summary) {
+    $("explain").style.display = "block";
+    $("explainText").textContent = s.explanation.summary;
+    $("explainSrc").textContent = "· " + s.explanation.source;
+  }
+  // Show deviations in mm when a scale bar was detected, else px.
+  const hasMM = m.mean_dev_mm != null;
+  const meanDev = hasMM ? `${fmt(m.mean_dev_mm)}mm` : `${fmt(m.mean_dev_px)}px`;
+  const maxDev  = hasMM ? `${fmt(m.max_dev_mm)}mm`  : `${fmt(m.max_dev_px)}px`;
+  const scaleLbl = hasMM ? `${fmt(m.scale_px_per_mm)}px/mm` : "no scale bar";
   $("metrics").style.display = "grid";
   $("metrics").innerHTML = `
-    <div class="metric"><b>${fmt(m.mean_dev_px)}px</b><span>mean deviation</span></div>
-    <div class="metric"><b>${fmt(m.max_dev_px)}px</b><span>max deviation</span></div>
+    <div class="metric"><b>${meanDev}</b><span>mean deviation</span></div>
+    <div class="metric"><b>${maxDev}</b><span>max deviation</span></div>
     <div class="metric"><b>${fmt(m.coverage_pct)}%</b><span>pattern covered</span></div>
     <div class="metric"><b>${fmt(m.completion_time_seconds)}s</b><span>task time</span></div>
     <div class="metric"><b>${fmt(m.gyro_rms_deg_s)}°/s</b><span>gyro RMS</span></div>
     <div class="metric"><b>${fmt(m.peak_angular_velocity_deg_s)}°/s</b><span>peak ang. vel.</span></div>
     <div class="metric"><b>${fmt(m.tremor_rms_deg_s)}°/s</b><span>tremor (jitter)</span></div>
     <div class="metric"><b>${fmt(q.imu_rate_hz)}Hz</b><span>IMU rate</span></div>
-    <div class="metric"><b>${fmt(q.n_scored_slices)}</b><span>scored slices</span></div>`;
+    <div class="metric"><b>${scaleLbl}</b><span>scale</span></div>`;
 }
 
 const rc = $("result"), rx = rc.getContext("2d");
@@ -233,6 +279,7 @@ function drawOverlay(st) {
     try { rx.drawImage(im, 0, 0, rc.width, rc.height); } catch(e) {}
     drawPoly(st.reference, "#4da3ff", sx, sy);
     drawPoly(st.red, "#ff6b6b", sx, sy);
+    if (st.scale_bar) drawPoly(st.scale_bar, "#b060ff", sx, sy);
   };
   im.src = `/sessions/${sid}/end.bmp?t=` + Date.now();
 }
