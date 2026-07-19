@@ -4,12 +4,16 @@ import {
   CalendarDays,
   ChevronRight,
   CircleUserRound,
+  ClipboardCheck,
   GitCompareArrows,
   LayoutDashboard,
   LogOut,
   Menu,
   X,
 } from 'lucide-react'
+import AssistantPanel from '../../gemini-ui-assistant/src/AssistantPanel'
+import { buildUiContext } from '../../gemini-ui-assistant/src/contextBuilder'
+import TherapistInbox from '../../therapist-copilot/src/TherapistInbox'
 import { api } from './api'
 import { ComparisonView } from './components/ComparisonView'
 import { LoginScreen } from './components/LoginScreen'
@@ -19,7 +23,7 @@ import { TrendChart } from './components/TrendChart'
 import { formatDate, titleCase } from './format'
 import type { PairComparison, Session, TrendPoint, User } from './types'
 
-type View = 'overview' | 'history' | 'compare'
+type View = 'overview' | 'history' | 'compare' | 'inbox'
 const sessionKey = (session: Session) => `${session.device_id}::${session.session_id}`
 
 function App() {
@@ -135,6 +139,7 @@ function App() {
     { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
     { id: 'history' as const, label: 'Session history', icon: CalendarDays },
     { id: 'compare' as const, label: 'Compare runs', icon: GitCompareArrows },
+    { id: 'inbox' as const, label: 'Therapist inbox', icon: ClipboardCheck },
   ]
 
   if (!authenticated) {
@@ -225,10 +230,16 @@ function App() {
               {view === 'compare' && (
                 <ComparisonView sessions={sessions} comparison={comparison} loading={comparisonLoading} error={comparisonError} referenceId={referenceId} currentId={currentId} onReference={setReferenceId} onCurrent={setCurrentId} onCompare={() => void compareRuns()} />
               )}
+
+              {view === 'inbox' && <TherapistInbox />}
             </>
           )}
         </div>
       </main>
+
+      <AssistantPanel
+        uiContext={buildUiContext({ view, sessionCount: sessions.length, latest, selectedSession })}
+      />
     </div>
   )
 }
